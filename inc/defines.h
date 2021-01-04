@@ -1,10 +1,15 @@
 #include <stdint.h>
 using namespace std;
 
-const uint16_t NMI_INT_VECTOR_ADDR = 0xFFFA;
-const uint16_t RST_INT_VECTOR_ADDR = 0xFFFC;
-const uint16_t BRK_INT_VECTOR_ADDR = 0xFFFE;
-const int RAM_SIZE = 0x10000;
+const uint32_t   COP_INT_VECTOR_ADDR = 0x00ffe4;
+const uint32_t   BRK_INT_VECTOR_ADDR = 0x00ffe6;
+const uint32_t   NMI_INT_VECTOR_ADDR = 0x00ffea;
+const uint32_t   IRQ_INT_VECTOR_ADDR = 0x00ffee;
+const uint32_t E_COP_INT_VECTOR_ADDR = 0x00fff4;
+const uint32_t E_NMI_INT_VECTOR_ADDR = 0x00fffa;
+const uint32_t E_RST_INT_VECTOR_ADDR = 0x00fffc;
+const uint32_t E_BRK_INT_VECTOR_ADDR = 0x00fffe;
+const unsigned int RAM_SIZE = 0x1000000;
 const unsigned int PPU_RAM_SIZE = 0x4000;
 const int PRG_ROM_SIZE = 0x4000;
 const int PRG_ROM_START = 0x8000;
@@ -78,7 +83,8 @@ enum instr {
     INX  = 0xe8,
     INY  = 0xc8,
     JMP1 = 0x4c, JMP2 = 0x5c, JMP3 = 0x6c, JMP4 = 0x7c, JMP5 = 0xdc,
-    JSR1 = 0x20, JSR2 = 0x22, JSR3 = 0xfc,
+    JSR1 = 0x20, JSR2 = 0x22, 
+    JSL  = 0xfc,
     LDA1 = 0xa1, LDA2 = 0xa3, LDA3 = 0xa5, LDA4 = 0xa7, LDA5 = 0xa9,
     LDA6 = 0xad, LDA7 = 0xaf, LDA8 = 0xb1, LDA9 = 0xb2, LDAa = 0xb3,
     LDAb = 0xb5, LDAc = 0xb7, LDAd = 0xb9, LDAe = 0xbd, LDAf = 0xbf,

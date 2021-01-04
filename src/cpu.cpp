@@ -4,29 +4,50 @@
 using namespace std;
 
 Cpu::Cpu() {
-    regX = regY = regA = 0x00;
+    regX = regY = regA = 0x0000;
     regPC = mem.read_word(0xFFFC);
     regSP = 0x01ff;
-    regP.C = regP.Z = regP.I = regP.D = regP.B = regP.V = regP.N = 0;
+    regP.C = regP.Z = regP.I = regP.D = regP.X = regP.M = regP.V = regP.N = 0;
+    regP.E = 0;
+    regPB = 0x00;
+    regDB = 0x00;
+    regDP = 0x0000;
 }
 
+/*
+    INSTRUCTION EXECUTION STEPS
+    
+    1. Fetch the opcode
+    2. Determine addressing mode
+    3. Compute address and operand
+    4. Compute clock cycle increments
+    5. Determine which function to use
+    6. Execute the function
+*/
+
+/////////////////////////////////////
+// DETERMINE WHICH FUNCTION TO USE //
+/////////////////////////////////////
+
 void Cpu::execute() {
-    uint16_t opcode = mem.read_byte(regPC);
+    uint16_t opcode = mem.read_byte((regPB << 16) | regPC);
     addr_mode_t addr_mode;
     uint32_t address;
     uint16_t operand;
+
     read_operand(&addr_mode, &address, &operand, opcode);
+    add_clock_cycles(opcode, address, addr_mode);
 
     switch (opcode) {
 	case ADC1: case ADC2: case ADC3: case ADC4: case ADC5:
 	case ADC6: case ADC7: case ADC8: case ADC9: case ADCa:
     case ADCb: case ADCc: case ADCd: case ADCe: case ADCf:
-	    ADC_execute(address, operand);
+	    ADC_execute(operand);
 	    break;
 	case AND1: case AND2: case AND3: case AND4: case AND5:
 	case AND6: case AND7: case AND8: case AND9: case ANDa:
     case ANDb: case ANDc: case ANDd: case ANDe: case ANDf:
-	    AND_execute(address, operand);
+	    AND_execute(operand);
 	    break;
 	case ASL2:
 	    ASL_A_execute();
@@ -95,9 +116,12 @@ void Cpu::execute() {
 	case CPY1: case CPY2: case CPY3:
 	    CPY_execute(operand);
 	    break;
-	case DEC1: case DEC2: case DEC3: case DEC4: case DEC5:
-	    DEC_execute(address, operand);
+	case DEC2: case DEC3: case DEC4: case DEC5:
+	    DEC_mem_execute(address, operand);
 	    break;
+    case DEC1:
+        DEC_A_execute();
+        break;
 	case DEX:
 	    DEX_execute();
 	    break;
@@ -109,21 +133,29 @@ void Cpu::execute() {
     case EORb: case EORc: case EORd: case EORe: case EORf:
 	    EOR_execute(operand);
 	    break;
-	case INC1: case INC2: case INC3: case INC4: case INC5:
-	    INC_execute(address, operand);
+	case INC2: case INC3: case INC4: case INC5:
+	    INC_mem_execute(address, operand);
 	    break;
+    case INC1:
+        INC_A_execute();
+        break;
 	case INX:
 	    INX_execute();
 	    break;
 	case INY:
 	    INY_execute();
 	    break;
-	case JMP1: case JMP2: case JMP3: case JMP4: case JMP5:
+	case JMP1: case JMP3: case JMP4: case JMP5:
 	    JMP_execute(address);
 	    break;
-	case JSR1: case JSR2: case JSR3:
+    case JMP2:
+        JML_execute(address);
+        break;
+	case JSR1: case JSR2:
 	    JSR_execute(address);
 	    break;
+    case JSL:
+        JSL_execute(address);
 	case LDA1: case LDA2: case LDA3: case LDA4: case LDA5:
     case LDA6: case LDA7: case LDA8: case LDA9: case LDAa:
     case LDAb: case LDAc: case LDAd: case LDAe: case LDAf:
@@ -141,6 +173,12 @@ void Cpu::execute() {
 	case LSR2:
 	    LSR_A_execute();
 	    break;
+    case MVN:
+        MVN_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
+        break;
+    case MVP:
+        MVP_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
+        break;
 	case ORA1: case ORA2: case ORA3: case ORA4: case ORA5:
     case ORA6: case ORA7: case ORA8: case ORA9: case ORAa:
     case ORAb: case ORAc: case ORAd: case ORAe: case ORAf:
@@ -197,7 +235,6 @@ void Cpu::execute() {
     case REP:
         REP_execute(operand);
         break;
-    //FINS AQUI
 	case ROL1: case ROL3: case ROL4: case ROL5:
 	    ROL_mem_execute(address, operand);
 	    break;
@@ -213,11 +250,15 @@ void Cpu::execute() {
 	case RTI:
 	    RTI_execute();
 	    break;
+    case RTL:
+        RTL_execute();
+        break;
 	case RTS:
 	    RTS_execute();
 	    break;
-	case SBC1: case SBC2: case SBC3: case SBC4:
-	case SBC5: case SBC6: case SBC7: case SBC8:
+	case SBC1: case SBC2: case SBC3: case SBC4: case SBC5:
+	case SBC6: case SBC7: case SBC8: case SBC9: case SBCa:
+    case SBCb: case SBCc: case SBCd: case SBCe: case SBCf:
 	    SBC_execute(operand);
 	    break;
 	case SEC:
@@ -229,22 +270,49 @@ void Cpu::execute() {
 	case SEI:
 	    SEI_execute();
 	    break;
-	case STA1: case STA2: case STA3:
-	case STA4: case STA5: case STA6: case STA7:
+    case SEP:
+        SEP_execute(operand);
+        break;
+	case STA1: case STA2: case STA3: case STA4: case STA5:
+	case STA6: case STA7: case STA8: case STA9: case STAa:
+    case STAb: case STAc: case STAd: case STAe:
 	    STA_execute(address);
 	    break;
+    case STP:
+        STP_execute();
+        break;
 	case STX1: case STX2: case STX3:
 	    STX_execute(address);
 	    break;
 	case STY1: case STY2: case STY3:
 	    STY_execute(address);
 	    break;
+    case STZ1: case STZ2: case STZ3: case STZ4:
+        STZ_execute(address);
 	case TAX:
 	    TAX_execute();
 	    break;
 	case TAY:
 	    TAY_execute();
 	    break;
+    case TCD:
+        TCD_execute();
+        break;
+    case TCS:
+        TCS_execute();
+        break;
+    case TDC:
+        TDC_execute();
+        break;
+    case TRB1: case TRB2:
+        TRB_execute(address, operand);
+        break;
+    case TSB1: case TSB2:
+        TSB_execute(address, operand);
+        break;
+    case TSC:
+        TSC_execute();
+        break;
 	case TSX:
 	    TSX_execute();
 	    break;
@@ -254,222 +322,136 @@ void Cpu::execute() {
 	case TXS:
 	    TXS_execute();
 	    break;
+    case TXY:
+        TXY_execute();
+        break;
 	case TYA:
 	    TYA_execute();
 	    break;
+    case TYX:
+        TYX_execute();
+        break;
+    case WAI:
+        WAI_execute();
+        break;
+    case WDM:
+        WDM_execute();
+        break;
+    case XBA:
+        XBA_execute();
+        break;
+    case XCE:
+        XCE_execute();
+        break;
 	default : 
 	    NOP_execute();
     }
-    add_clock_cycles(opcode, address, addr_mode);
-    //debug_dump(opcode);
+    debug_dump(opcode);
 }
 
-void Cpu::add_clock_cycles(uint8_t opcode, uint16_t address, addr_mode_t addr_mode) {
+void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode) {
     //Add cycles depending on address mode and instruction
     switch (addr_mode) {
-	case IMMEDIATE:
-	    clock->cycles += 2;
-	    break;
-	case ZERO_PAGE:
-	    clock->cycles += 3;
-	    if (opcode == ASL1 ||
-		opcode == ASL2 ||
-		opcode == ASL3 ||
-		opcode == ASL4 ||
-		opcode == ASL5 ||
-		opcode == DEC1 || 
-		opcode == DEC2 || 
-		opcode == DEC3 || 
-		opcode == DEC4 || 
-		opcode == INC1 || 
-		opcode == INC2 || 
-		opcode == INC3 || 
-		opcode == INC4 || 
-		opcode == LSR1 || 
-		opcode == LSR2 || 
-		opcode == LSR3 || 
-		opcode == LSR4 || 
-		opcode == LSR5 || 
-		opcode == ROL1 ||
-		opcode == ROL2 ||
-		opcode == ROL3 ||
-		opcode == ROL4 ||
-		opcode == ROL5 ||
-		opcode == ROR1 ||
-		opcode == ROR2 ||
-		opcode == ROR3 ||
-		opcode == ROR4 ||
-		opcode == ROR5) {
-		    clock->cycles += 2;
-	    }
-	    break;
-	case ZERO_PAGE_X:
-	    clock->cycles += 4;
-	    if (opcode == ASL1 ||
-		opcode == ASL2 ||
-		opcode == ASL3 ||
-		opcode == ASL4 ||
-		opcode == ASL5 ||
-		opcode == DEC1 || 
-		opcode == DEC2 || 
-		opcode == DEC3 || 
-		opcode == DEC4 || 
-		opcode == INC1 || 
-		opcode == INC2 || 
-		opcode == INC3 || 
-		opcode == INC4 || 
-		opcode == LSR1 || 
-		opcode == LSR2 || 
-		opcode == LSR3 || 
-		opcode == LSR4 || 
-		opcode == LSR5 || 
-		opcode == ROL1 ||
-		opcode == ROL2 ||
-		opcode == ROL3 ||
-		opcode == ROL4 ||
-		opcode == ROL5 ||
-		opcode == ROR1 ||
-		opcode == ROR2 ||
-		opcode == ROR3 ||
-		opcode == ROR4 ||
-		opcode == ROR5) {
-		    clock->cycles += 2;
-	    }
-	    break;
-	case ABSOLUTE:
-	    clock->cycles += 4;
-	    if (opcode == ASL1 ||
-		opcode == ASL2 ||
-		opcode == ASL3 ||
-		opcode == ASL4 ||
-		opcode == ASL5 ||
-		opcode == DEC1 || 
-		opcode == DEC2 || 
-		opcode == DEC3 || 
-		opcode == DEC4 || 
-		opcode == INC1 || 
-		opcode == INC2 || 
-		opcode == INC3 || 
-		opcode == INC4 || 
-		opcode == LSR1 || 
-		opcode == LSR2 || 
-		opcode == LSR3 || 
-		opcode == LSR4 || 
-		opcode == LSR5 || 
-		opcode == JSR  ||
-		opcode == ROL1 ||
-		opcode == ROL2 ||
-		opcode == ROL3 ||
-		opcode == ROL4 ||
-		opcode == ROL5 ||
-		opcode == ROR1 ||
-		opcode == ROR2 ||
-		opcode == ROR3 ||
-		opcode == ROR4 ||
-		opcode == ROR5) {
-		    clock->cycles += 2;
-	    }
-	    if (opcode == JMP1 || opcode == JMP2) {
-		    clock->cycles -= 1;
-	    }
-	case ABSOLUTE_X:
-	    clock->cycles += 4;
-	    if (opcode == STA1 || opcode == STA2 ||
-		opcode == STA3 || opcode == STA4 ||
-		opcode == STA5 || opcode == STA6 ||
-		opcode == STA7) {
-		    clock->cycles += 1;
-	    }
-	    else if (opcode == ASL1 ||
-		opcode == ASL2 ||
-		opcode == ASL3 ||
-		opcode == ASL4 ||
-		opcode == ASL5 ||
-		opcode == DEC1 || 
-		opcode == DEC2 || 
-		opcode == DEC3 || 
-		opcode == DEC4 || 
-		opcode == INC1 || 
-		opcode == INC2 || 
-		opcode == INC3 || 
-		opcode == INC4 || 
-		opcode == LSR1 || 
-		opcode == LSR2 || 
-		opcode == LSR3 || 
-		opcode == LSR4 || 
-		opcode == LSR5 || 
-		opcode == JSR  ||
-		opcode == ROL1 ||
-		opcode == ROL2 ||
-		opcode == ROL3 ||
-		opcode == ROL4 ||
-		opcode == ROL5 ||
-		opcode == ROR1 ||
-		opcode == ROR2 ||
-		opcode == ROR3 ||
-		opcode == ROR4 ||
-		opcode == ROR5) {
-		    clock->cycles += 3;
-	    }
-	    else if ((address & 0x00FF) == 0xFF) {
-		    //Page crossing
-		    clock->cycles += 1;
-	    }
-	    break;
-	case ABSOLUTE_Y:
-	    clock->cycles += 4;
-	    if (opcode == STA1 || opcode == STA2 ||
-		opcode == STA3 || opcode == STA4 ||
-		opcode == STA5 || opcode == STA6 ||
-		opcode == STA7) {
-		    clock->cycles += 1;
-	    }
-	    else if ((address & 0x00FF) == 0xFF) {
-		    //Page crossing
-		    clock->cycles += 1;
-	    }
-	    break;
-	case INDIRECT_X:
-	    clock->cycles += 6;
-	    break;
-	case INDIRECT_Y:
-	    clock->cycles += 5;
-	    if (opcode == STA1 || opcode == STA2 ||
-		opcode == STA3 || opcode == STA4 ||
-		opcode == STA5 || opcode == STA6 ||
-		opcode == STA7) {
-		    clock->cycles += 1;
-	    }
-	    else if ((address & 0x00FF) == 0xFF) {
-		    //Page crossing
-		    clock->cycles += 1;
-	    }
-	    break;
-	case RELATIVE:
-	    clock->cycles += 2;
-	    break;
-	case INDIRECT:
-	    clock->cycles += 5;
-	    break;
-	case IMPLIED:
-	    clock->cycles += 2;
-	    if (opcode == PHA || opcode == PHP) {
-		    clock->cycles += 1;
-	    }
-	    else if (opcode == PLA || opcode == PLP) {
-		    clock->cycles += 2;
-	    }
-	    else if (opcode == RTI || opcode == RTS) {
-		    clock->cycles += 4;
-	    }
-	    else if (opcode == BRK) {
-		    clock->cycles += 5;
-	    }
-	    break;
-	default:
-	    //SOMETHING WENT REALLY WRONG
-	    clock->cycles += 1;
-	    cout << "Timing unrecognized" << endl;
+        case IMPLIED:
+            if (opcode == STP || opcode == WAI || opcode == XBA)
+                clock->cycles += 3;
+            else
+                clock->cycles += 2;
+            break;
+        case IMMEDIATE:
+            if (opcode == REP || opcode == SEP)
+                clock->cycles += 3;
+            else {
+                clock->cycles += 2;
+            }
+            break;
+        case RELATIVE:
+            //We assume the branches already set the cycle if branch taken
+            clock->cycles += 2;
+            if (regP.E)
+                clock->cycles += 1;
+            break;
+        case RELATIVE_LONG:
+            if (opcode == PER)
+                clock->cycles += 6;
+            else
+                clock->cycles += 4;
+            break;
+        case DIRECT:
+            clock->cycles += 3;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case DIRECT_INDEXED:
+            clock->cycles += 6;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case DIRECT_INDIRECT:
+            clock->cycles += 5;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case DIRECT_INDEXED_INDIRECT:
+            clock->cycles += 6;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case DIRECT_INDIRECT_INDEXED:
+            clock->cycles += 5;
+            if ((regDP & 0xff00) != (address & 0xff00))
+                clock->cycles += 1;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case DIRECT_INDIRECT_LONG:
+            clock->cycles += 6;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case DIRECT_INDIRECT_LONG_INDEXED:
+            clock->cycles += 6;
+            if ((regDP & 0x00ff) != 0)
+                clock->cycles += 1;
+            break;
+        case ABSOLUTE:
+            clock->cycles += 4;
+            break;
+        case ABSOLUTE_INDEXED:
+            clock->cycles += 4;
+            if ((regDP & 0xff00) != (address & 0xff00))
+                clock->cycles += 1;
+            break;
+        case ABSOLUTE_LONG:
+            clock->cycles += 5;
+            break;
+        case ABSOLUTE_INDEXED_LONG:
+            clock->cycles += 5;
+            break;
+        case STACK_RELATIVE:
+            clock->cycles += 4;
+            break;
+        case STACK_RELATIVE_INDIRECT_INDEXED:
+            clock->cycles += 7;
+            break;
+        case ABSOLUTE_INDIRECT:
+            clock->cycles += 5;
+            break;
+        case ABSOLUTE_INDIRECT_LONG:
+            clock->cycles += 6;
+            break;
+        case ABSOLUTE_INDEXED_INDIRECT:
+            clock->cycles += 6;
+            break;
+        case IMPLIED_ACCUMULATOR:
+            clock->cycles += 2;
+            break;
+        case BLOCK_MOVE:
+            break;
+		default:
+	        //SOMETHING WENT REALLY WRONG
+	        clock->cycles += 1;
+	        cout << "Timing unrecognized" << endl;
     }
 }
 
@@ -478,7 +460,6 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
     *address = 0;
     *operand = 0;
     uint8_t column = opcode & 0x1f;
-    uint8_t row    = opcode & 0xe0;
 
     switch (column) {
 	case 0x00:
@@ -499,18 +480,24 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
 	    read_operand_direct_indexed_indirect(addr_mode, address, operand);
 	    break;
 	case 0x02:
-	    if (opcode == COP || opcode == REP || opcode == SEP)
-		    read_operand_immediate(addr_mode, address, operand);
-        else if (opcode == LDX) {
-            if (regP.X)
-                read_operand_immediate(addr_mode, address, operand);
-            else
-                read_operand_immediate_long(addr_mode, address, operand);
+        switch (opcode) {
+            case COP: case REP: case SEP:
+		        read_operand_immediate(addr_mode, address, operand);
+                break;
+            case LDX1:
+                if (regP.X) {
+                    read_operand_immediate(addr_mode, address, operand);
+                }
+                else {
+                    read_operand_immediate_long(addr_mode, address, operand);
+                }
+                break;
+            case PER: case BRL:
+                read_operand_relative_long(addr_mode, address, operand);
+                break;
+            default:
+                read_operand_absolute_long(addr_mode, address, operand);
         }
-	    else if (opcode == PER || opcode == BRL)
-            read_operand_relative_long(addr_mode, address, operand);
-        else
-            read_operand_absolute_long(addr_mode, address, operand);	    
 	    break;
     case 0x03:
         read_operand_stack_relative(addr_mode, address, operand);
@@ -559,7 +546,7 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
     case 0x12:
         read_operand_direct_indirect(addr_mode, address, operand);
         break;
-    cases 0x13:
+    case 0x13:
         read_operand_stack_relative_indirect_indexed(addr_mode, address, operand);
         break;
 	case 0x14:
@@ -578,10 +565,12 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
         read_operand_direct_indexed_x(addr_mode, address, operand);
 	    break;
 	case 0x16:
-        if (opcode == STX3 || opcode == LDX4)
+        if (opcode == STX3 || opcode == LDX4) {
             read_operand_direct_indexed_y(addr_mode, address, operand);
-        else
+        }
+        else {
             read_operand_direct_indexed_x(addr_mode, address, operand);	    
+        }
 	    break;
     case 0x17:
         read_operand_direct_indirect_long_indexed(addr_mode, address, operand);
@@ -590,20 +579,28 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
 	    read_operand_absolute_indexed_y(addr_mode, address, operand);
 	    break;
 	case 0x1c:
-        if (opcode == TRB2)
-	        read_operand_absolute(addr_mode, address, operand);
-        else if (opcode == JMP2)
-            read_operand_absolute_long(addr_mode, address, operand);
-        else if (opcode == JMP4)
-            read_operand_absolute_indexed_indirect(addr_mode, address, operand);
-        else if (opcode == STZ3)
-            read_operand_absolute(addr_mode, address, operand);
-        else if (opcode == JMP5)
-            read_operand_absolute_indirect_long(addr_mode, address, operand);
-        else if (opcode == JSR3)
-            read_operand_absolute_indexed_indirect(addr_mode, address, operand);
-        else
-            read_operand_absolute_indexed_x(addr_mode, address, operand);
+        switch(opcode) {
+            case TRB2:
+	            read_operand_absolute(addr_mode, address, operand);
+                break;
+            case JMP2:
+                read_operand_absolute_long(addr_mode, address, operand);
+                break;
+            case JMP4:
+                read_operand_absolute_indexed_indirect(addr_mode, address, operand);
+                break;
+            case STZ3:
+                read_operand_absolute(addr_mode, address, operand);
+                break;
+            case JMP5:
+                read_operand_absolute_indirect_long(addr_mode, address, operand);
+                break;
+            case JSL:
+                read_operand_absolute_indexed_indirect(addr_mode, address, operand);
+                break;
+            default:
+                read_operand_absolute_indexed_x(addr_mode, address, operand);
+        }
 	    break;
 	case 0x1d:
         read_operand_absolute_indexed_x(addr_mode, address, operand);
@@ -644,7 +641,7 @@ void Cpu::read_operand_immediate_long(addr_mode_t *addr_mode, uint32_t *address,
     
     *address = 0;
     *operand = ((op_h << 8) & 0xff00) | (op_l & 0x00ff);
-    *addr_mode = IMMEDIATE_LONG;
+    *addr_mode = IMMEDIATE;
     regPC += 3;
 }
 
@@ -680,7 +677,7 @@ void Cpu::read_operand_direct(addr_mode_t *addr_mode, uint32_t *address, uint16_
     // operand = ram[address]
 
     *address = (mem.read_byte(regPC + 1) + regDP) & 0x00ffff;
-    *operand = mem.read_word(byte);
+    *operand = mem.read_word(*address);
     *addr_mode = DIRECT;
     regPC += 2;
 }
@@ -690,8 +687,8 @@ void Cpu::read_operand_direct_indexed_x(addr_mode_t *addr_mode, uint32_t *addres
     // address = 00:DP+byte+x
     // operand = ram[address]
 
-    *address = ((mem.read_byte(regPC + 1) + regX + regDP) & 0x00ffff;
-    *operand = mem.read_word(addr);
+    *address = (mem.read_byte(regPC + 1) + regX + regDP) & 0x00ffff;
+    *operand = mem.read_word(*address);
     *addr_mode = DIRECT_INDEXED;
     regPC += 2;
 }
@@ -702,7 +699,7 @@ void Cpu::read_operand_direct_indexed_y(addr_mode_t *addr_mode, uint32_t *addres
     // operand = ram[address]
 
     *address = (mem.read_byte(regPC + 1) + regY + regDP) & 0x00ffff;
-    *operand = mem.read_word(addr);
+    *operand = mem.read_word(*address);
     *addr_mode = DIRECT_INDEXED;
     regPC += 2;
 }
@@ -714,7 +711,7 @@ void Cpu::read_operand_direct_indirect(addr_mode_t *addr_mode, uint32_t *address
 
     uint32_t ptr = (mem.read_byte(regPC + 1) + regDP) & 0x00ffff;
     
-    *address = (DB << 16) + mem.read_word(ptr);
+    *address = (regDB << 16) + mem.read_word(ptr);
     *operand = mem.read_word(*address);
     *addr_mode = DIRECT_INDIRECT;
     regPC += 2;
@@ -764,7 +761,7 @@ void Cpu::read_operand_absolute_indexed_x(addr_mode_t *addr_mode, uint32_t *addr
     // operand = ram[address]
 
     uint32_t addr = 
-        ((regDB << 16) | ((mem.read_word(regPC + 1) + regX) & 0x00ffff);
+        (regDB << 16) | ((mem.read_word(regPC + 1) + regX) & 0x00ffff);
     *address = addr;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED;
@@ -777,7 +774,7 @@ void Cpu::read_operand_absolute_indexed_y(addr_mode_t *addr_mode, uint32_t *addr
     // operand = ram[address]
 
     uint32_t addr = 
-        ((regDB << 16) | ((mem.read_word(regPC + 1) + regY) & 0x00ffff);
+        (regDB << 16) | ((mem.read_word(regPC + 1) + regY) & 0x00ffff);
     *address = addr;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED;
@@ -825,7 +822,7 @@ void Cpu::read_operand_stack_relative_indirect_indexed(addr_mode_t *addr_mode, u
     uint32_t ptr = (mem.read_byte(regPC + 1) + regSP) & 0x00ffff;
 
     *address = (regDB << 16) + mem.read_word(ptr) + regY;
-    *operand = mem.read_word(address);
+    *operand = mem.read_word(*address);
     *addr_mode = STACK_RELATIVE_INDIRECT_INDEXED;
     regPC += 2;
 }
@@ -838,7 +835,7 @@ void Cpu::read_operand_absolute_indirect(addr_mode_t *addr_mode, uint32_t *addre
     uint32_t ptr = mem.read_word(regPC + 1);
 
     *address = mem.read_word(ptr);
-    *operand = mem.read_word(address);
+    *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDIRECT;
     regPC += 2;
 }
@@ -851,7 +848,7 @@ void Cpu::read_operand_absolute_indirect_long(addr_mode_t *addr_mode, uint32_t *
     uint32_t ptr = mem.read_word(regPC + 1);
 
     *address = mem.read_long(ptr);
-    *operand = mem.read_word(address);
+    *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDIRECT_LONG;
     regPC += 2;
 }
@@ -864,7 +861,7 @@ void Cpu::read_operand_absolute_indexed_indirect(addr_mode_t *addr_mode, uint32_
     uint32_t ptr = (mem.read_word(regPC + 1) + regX) & 0x00ffff;
 
     *address = mem.read_word(ptr);
-    *operand = mem.read_word(address);
+    *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED_INDIRECT;
     regPC += 2;
 }
@@ -875,8 +872,8 @@ void Cpu::read_operand_absolute_long_indexed(addr_mode_t *addr_mode, uint32_t *a
     // operand = ram[address]
 
     *address = mem.read_long(regPC + 1) + regX;
-    *operand = mem.read_word(address);
-    *addr_mode = ABSOLUTE_LONG_INDEXED;
+    *operand = mem.read_word(*address);
+    *addr_mode = ABSOLUTE_INDEXED_LONG;
     regPC += 3;
 }
 
@@ -941,16 +938,24 @@ void Cpu::ADC_execute(uint16_t operand) {
     bool isCarry = false;
 
     uint16_t result_part = regA + operand;
-    if (regP.M)
-        if ((uint8_t) result_part < (uint8_t) regA) isCarry = true;
-    else
-        if (result_part < regA) isCarry = true;
+    if (regP.M) {
+        if ((uint8_t) result_part < (uint8_t) regA) 
+            isCarry = true;
+    }
+    else {
+        if (result_part < regA) 
+            isCarry = true;
+    }
     
     uint16_t result = result_part + regP.C;
-    if (regP.M)
-        if ((uint8_t) result < (uint8_t) result_part) isCarry = true;
-    else
-        if (result < regA) isCarry = true;
+    if (regP.M) {
+        if ((uint8_t) result < (uint8_t) result_part)
+            isCarry = true;
+    }
+    else {
+        if (result < regA) 
+            isCarry = true;
+    }
     
     if (regP.M) {
         signResult = (result >> 15) & 1;
@@ -964,6 +969,7 @@ void Cpu::ADC_execute(uint16_t operand) {
         signRegA = (regA >> 7) & 1;
         signOperand = (operand >> 7) & 1;
         regP.Z = result == 0;
+        clock->cycles += 1;
     }
 
     regP.C = isCarry;
@@ -988,6 +994,7 @@ void Cpu::AND_execute(uint16_t operand) {
 
         regP.Z = result == 0;
         regP.N = (result >> 7) & 1;
+        clock->cycles += 1;
     }
 }
 
@@ -1002,6 +1009,8 @@ void Cpu::ASL_mem_execute(uint32_t address, uint16_t operand) {
     regP.Z = result == 0;
     regP.C = (operand >> 15) & 1;
     regP.N = (result >> 15) & 1;
+    if (!regP.M)
+        clock->cycles += 2;
 }
 
 void Cpu::ASL_A_execute() {
@@ -1032,6 +1041,7 @@ void Cpu::BCC_execute(uint32_t address) {
     
     if (!regP.C) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1040,6 +1050,7 @@ void Cpu::BCS_execute(uint32_t address) {
     
     if (regP.C) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1048,6 +1059,7 @@ void Cpu::BEQ_execute(uint32_t address) {
 
     if (regP.Z) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1066,6 +1078,7 @@ void Cpu::BIT_execute(uint16_t operand) {
         regP.Z = tmp == 0;
         regP.V = (tmp >> 14) & 1;
         regP.N = (tmp >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
@@ -1080,6 +1093,7 @@ void Cpu::BIT_imm_execute(uint16_t operand) {
     }
     else {
         regP.Z = tmp == 0;
+        clock->cycles += 1;
     }
 }
 
@@ -1088,6 +1102,7 @@ void Cpu::BMI_execute(uint32_t address) {
     
     if (regP.N) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1096,6 +1111,7 @@ void Cpu::BNE_execute(uint32_t address) {
 
     if (!regP.Z) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1104,6 +1120,7 @@ void Cpu::BPL_execute(uint32_t address) {
 
     if (!regP.N) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1118,7 +1135,7 @@ void Cpu::BRK_execute() {
     procStat =  (regP.N) << 7 |
 		(regP.V) << 6 |
         (regP.M) << 5 |
-		(regP.B) << 4 |
+		(regP.X) << 4 |
 		(regP.D) << 3 |
 		(regP.I) << 2 |
 		(regP.Z) << 1 |
@@ -1128,8 +1145,10 @@ void Cpu::BRK_execute() {
     pushStack(highPC);
     pushStack(lowPC);
     pushStack(procStat);
-    if (!regP.E)
+    if (!regP.E) {
         pushStack(regPB);
+        clock->cycles += 1;
+    } 
 
     //We set the PC to the interrupt vector and the Break command
     regPC = mem.read_word(BRK_INT_VECTOR_ADDR);
@@ -1159,8 +1178,10 @@ void Cpu::COP_execute() {
     pushStack(highPC);
     pushStack(lowPC);
     pushStack(procStat);
-    if (!regP.E)
+    if (!regP.E) {
         pushStack(regPB);
+        clock->cycles += 1;
+    }
 
     //We set the PC to the interrupt vector and the Break command
     regPC = mem.read_word(COP_INT_VECTOR_ADDR);
@@ -1174,6 +1195,7 @@ void Cpu::BVC_execute(uint32_t address) {
 
     if (!regP.V) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1182,6 +1204,7 @@ void Cpu::BVS_execute(uint32_t address) {
 
     if (regP.V) {
 	    regPC = address;
+        clock->cycles += 1;
     }
 }
 
@@ -1189,6 +1212,7 @@ void Cpu::BRA_execute(uint32_t address) {
     //Branch always
 
     regPC = address;
+    clock->cycles += 1;
 }
 
 void Cpu::BRL_execute(uint32_t address) {
@@ -1237,6 +1261,7 @@ void Cpu::CMP_execute(uint16_t operand) {
         regP.C = regA >= operand;
         regP.Z = regA == operand;
         regP.N = (comp >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
@@ -1255,6 +1280,7 @@ void Cpu::CPX_execute(uint16_t operand) {
         regP.C = regX >= operand;
         regP.Z = regX == operand;
         regP.N = (comp >> 15) & 1;
+        clock->cycles += 1;
     }
 }   
 
@@ -1273,10 +1299,11 @@ void Cpu::CPY_execute(uint16_t operand) {
         regP.C = regY >= operand;
         regP.Z = regY == operand;
         regP.N = (comp >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
-void Cpu::DEC_execute(uint32_t address, uint16_t operand) {
+void Cpu::DEC_mem_execute(uint32_t address, uint16_t operand) {
     //Decrement memory
     //M,Z,N = M-1
 
@@ -1286,8 +1313,27 @@ void Cpu::DEC_execute(uint32_t address, uint16_t operand) {
 
     regP.Z = result == 0;
     regP.N = (result >> 15) & 1;
+    if (!regP.M)
+        clock->cycles += 2;
 }
 
+void Cpu::DEC_A_execute() {
+    //Decrement accumulator
+    //A,Z,N = A-1
+
+    uint16_t result = regA-1;
+
+    regA = result;
+
+    if (regP.M) {
+        regP.Z = (uint8_t) result == 0;
+        regP.N = (result >> 7) & 1;
+    }
+    else {
+        regP.Z = result == 0;
+        regP.N = (result >> 15) & 1;
+    }
+}
 void Cpu::DEX_execute() {
     //Decrement X register
     //X,Z,N = X-1
@@ -1345,10 +1391,11 @@ void Cpu::EOR_execute(uint16_t operand) {
 
         regP.Z = result == 0;
         regP.N = (result >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
-void Cpu::INC_execute(uint32_t address, uint16_t operand) {
+void Cpu::INC_mem_execute(uint32_t address, uint16_t operand) {
     //Increment memory
     //M,Z,N = M+1
 
@@ -1363,6 +1410,24 @@ void Cpu::INC_execute(uint32_t address, uint16_t operand) {
     else {
         mem.write_word(address, result);
 
+        regP.Z = result == 0;
+        regP.N = (result >> 15) & 1;
+        clock->cycles += 2;
+    }
+}
+
+void Cpu::INC_A_execute() {
+    //Increment memory
+    //A,Z,N = A+1
+
+    uint16_t result = regA + 1;
+    regA = result;
+
+    if (regP.M) {
+        regP.Z = (uint8_t) result == 0;
+        regP.N = (result >> 7) & 1;
+    }
+    else {
         regP.Z = result == 0;
         regP.N = (result >> 15) & 1;
     }
@@ -1414,6 +1479,13 @@ void Cpu::JMP_execute(uint32_t address) {
     regPC = address;
 }
 
+void Cpu::JML_execute(uint32_t address) {
+    //Jump long
+
+    regPC = address;
+    regPB = (address >> 16) & 0x00ff;
+}
+
 void Cpu::JSR_execute(uint32_t address) {
     //Jump to subroutine
 
@@ -1450,6 +1522,8 @@ void Cpu::LDA_execute(uint16_t operand) {
 
         regP.Z = regA == 0;
         regP.N = (regA >> 15) & 1;
+        clock->cycles += 1;
+    }
 }
 
 void Cpu::LDX_execute(uint16_t operand) {
@@ -1467,6 +1541,7 @@ void Cpu::LDX_execute(uint16_t operand) {
 
         regP.Z = regX == 0;
         regP.N = (regX >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
@@ -1485,6 +1560,7 @@ void Cpu::LDY_execute(uint16_t operand) {
 
         regP.Z = regY == 0;
         regP.N = (regY >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
@@ -1494,11 +1570,21 @@ void Cpu::LSR_mem_execute(uint32_t address, uint16_t operand) {
 
     uint16_t result = (operand >> 1) & 0x7fff;
 
-    mem.write_word(address, result);
+    if (regP.M) {
+        mem.write_byte(address, (uint8_t) result);
 
-    regP.Z = result == 0;
-    regP.C = operand & 1;
-    regP.N = (result >> 15) & 1;
+        regP.Z = (uint8_t) result == 0;
+        regP.C = operand & 1;
+        regP.N = (result >> 7) & 1;
+    }
+    else {
+        mem.write_word(address, result);
+
+        regP.Z = result == 0;
+        regP.C = operand & 1;
+        regP.N = (result >> 15) & 1;
+        clock->cycles += 1;
+    }
 }
 
 void Cpu::LSR_A_execute() {
@@ -1523,10 +1609,10 @@ void Cpu::LSR_A_execute() {
     }
 }
 
-void Cpu::MVN_execute(uint8_t srcBank, uint8_t destBank) {
+void Cpu::MVN_execute(uint8_t srcBank, uint8_t dstBank) {
     //Move block negative
 
-    uint32_t len, srcAddr, destAddr;
+    uint32_t len, srcAddr, dstAddr;
     if (regP.M)
         len = regA & 0x00ff;
     else
@@ -1535,12 +1621,12 @@ void Cpu::MVN_execute(uint8_t srcBank, uint8_t destBank) {
     len++;
 
     if (regP.X) {
-        srcAddr = (srcBank << 16) & 0xff0000 | (regX & 0x00ff);
-        srcAddr = (dstBank << 16) & 0xff0000 | (regY & 0x00ff);
+        srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
+        dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
     }
     else {
-        srcAddr = (srcBank << 16) & 0xff0000 | regX;
-        dstAddr = (srcBank << 16) & 0xff0000 | regY;
+        srcAddr = ((srcBank << 16) & 0xff0000) | regX;
+        dstAddr = ((dstBank << 16) & 0xff0000) | regY;
     }
 
     do {
@@ -1549,9 +1635,10 @@ void Cpu::MVN_execute(uint8_t srcBank, uint8_t destBank) {
         srcAddr++;
         dstAddr++;
         len--;
+        clock->cycles += 7;
     } while (len != 0xffffffff);
 
-    regDB = destBank;
+    regDB = dstBank;
 
     if (regP.M)
         regA = len & 0x00ff;
@@ -1568,10 +1655,10 @@ void Cpu::MVN_execute(uint8_t srcBank, uint8_t destBank) {
     }
 }
 
-void Cpu::MVP_execute(uint8_t srcBank, uint8_t destBank) {
+void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
     //Move block positive
 
-    uint32_t len, srcAddr, destAddr;
+    uint32_t len, srcAddr, dstAddr;
     if (regP.M)
         len = regA & 0x00ff;
     else
@@ -1580,12 +1667,12 @@ void Cpu::MVP_execute(uint8_t srcBank, uint8_t destBank) {
     len++;
 
     if (regP.X) {
-        srcAddr = (srcBank << 16) & 0xff0000 | (regX & 0x00ff);
-        srcAddr = (dstBank << 16) & 0xff0000 | (regY & 0x00ff);
+        srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
+        dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
     }
     else {
-        srcAddr = (srcBank << 16) & 0xff0000 | regX;
-        dstAddr = (srcBank << 16) & 0xff0000 | regY;
+        srcAddr = ((srcBank << 16) & 0xff0000) | regX;
+        dstAddr = ((dstBank << 16) & 0xff0000) | regY;
     }
 
     do {
@@ -1594,9 +1681,10 @@ void Cpu::MVP_execute(uint8_t srcBank, uint8_t destBank) {
         srcAddr--;
         dstAddr--;
         len--;
+        clock->cycles += 7;
     } while (len != 0xffffffff);
 
-    regDB = destBank;
+    regDB = dstBank;
 
     if (regP.M)
         regA = len & 0x00ff;
@@ -1624,16 +1712,17 @@ void Cpu::ORA_execute(uint16_t operand) {
     uint16_t result = regA | operand;
 
     if (regP.M) {
-	regA = (uint8_t) result;
+	    regA = (uint8_t) result;
 
     	regP.Z = (uint8_t) result == 0;
     	regP.N = (result >> 7) & 1;
     }
     else {
-	regA = result;
+	    regA = result;
 
-	regP.Z = result == 0;
-	regP.N = (result >> 15) & 1;
+	    regP.Z = result == 0;
+	    regP.N = (result >> 15) & 1;
+        clock->cycles += 1;
     }
 }
 
@@ -1661,8 +1750,10 @@ void Cpu::PER_execute(uint32_t address) {
 void Cpu::PHA_execute() {
     // Push accumulator
 
-    if (!regP.M)
-	pushStack((regA >> 8) & 0x00ff);
+    if (!regP.M) {
+	    pushStack((regA >> 8) & 0x00ff);
+        clock->cycles += 1;
+    }
     pushStack(regA & 0x00ff);
 }
 
@@ -1672,13 +1763,13 @@ void Cpu::PHB_execute() {
     pushStack(regDB);
 }
 
-void Cpu::PHD() {
+void Cpu::PHD_execute() {
     // Push direct page register
 
     pushStack(regDP);
 }
 
-void Cpu::PHK() {
+void Cpu::PHK_execute() {
     // Push program bank register
 
     pushStack(regPB);
@@ -1702,16 +1793,20 @@ void Cpu::PHP_execute() {
 void Cpu::PHX_execute() {
     // Push index register X
 
-    if (!regP.X)
-	pushStack((regX >> 8) & 0x00ff);
+    if (!regP.X) {
+	    pushStack((regX >> 8) & 0x00ff);
+        clock->cycles += 1;
+    }
     pushStack(regX & 0x00ff);
 }
 
 void Cpu::PHY_execute() {
     // Push index register Y
 
-    if (!regP.X)
-	pushStack((regY >> 8) & 0x00ff);
+    if (!regP.X) {
+	    pushStack((regY >> 8) & 0x00ff);
+        clock->cycles += 1;
+    }
     pushStack(regY & 0x00ff);
 }
 
@@ -1720,14 +1815,15 @@ void Cpu::PLA_execute() {
 
     regA = pullStack();
     if (!regP.M) {
-	regA |= (pullStack() << 8);
+	    regA |= (pullStack() << 8);
 
-	regP.Z = regA == 0;
-	regP.N = (regA >> 15) & 1;
+	    regP.Z = regA == 0;
+	    regP.N = (regA >> 15) & 1;
+        clock->cycles += 1;
     }
     else {
         regP.Z = (uint8_t) regA == 0;
-	regP.N = (regA >> 7) & 1;
+	    regP.N = (regA >> 7) & 1;
     }
 }
 
@@ -1778,14 +1874,15 @@ void Cpu::PLX_execute() {
 
     regX = pullStack();
     if (!regP.X) {
-	regX |= (pullStack() << 8);
+	    regX |= (pullStack() << 8);
 
-	regP.Z = regX == 0;
-	regP.N = (regX >> 15) & 1;
+	    regP.Z = regX == 0;
+	    regP.N = (regX >> 15) & 1;
+        clock->cycles += 1;
     }
     else {
         regP.Z = (uint8_t) regX == 0;
-	regP.N = (regX >> 7) & 1;
+	    regP.N = (regX >> 7) & 1;
     }
 }
 
@@ -1794,14 +1891,15 @@ void Cpu::PLY_execute() {
 
     regY = pullStack();
     if (!regP.X) {
-	regY |= (pullStack() << 8);
+	    regY |= (pullStack() << 8);
 
-	regP.Z = regY == 0;
-	regP.N = (regY >> 15) & 1;
+	    regP.Z = regY == 0;
+	    regP.N = (regY >> 15) & 1;
+        clock->cycles += 1;
     }
     else {
         regP.Z = (uint8_t) regY == 0;
-	regP.N = (regY >> 7) & 1;
+	    regP.N = (regY >> 7) & 1;
     }
 }
 
@@ -1819,8 +1917,8 @@ void Cpu::REP_execute(uint16_t operand) {
     regP.C &= (noperand & 1);
 
     if (regP.E) {
-	regP.X = 1;
-	regP.M = 1;
+	    regP.X = 1;
+	    regP.M = 1;
     }
 }
 
@@ -1829,17 +1927,27 @@ void Cpu::ROL_mem_execute(uint32_t address, uint16_t operand) {
 
     uint16_t result = (operand << 1) | regP.C;
 
-    mem.write_word(address, result);
+    if (regP.M) {
+        mem.write_byte(address, result);
 
-    regP.C = (operand >> 15) & 1;
-    regP.Z = result == 0;
-    regP.N = (result >> 15) & 1;
+        regP.C = (operand >> 7) & 1;
+        regP.Z = (uint8_t) result == 0;
+        regP.N = (result >> 7) & 1;
+        clock->cycles += 1;
+    }
+    else {
+        mem.write_word(address, result);
+
+        regP.C = (operand >> 15) & 1;
+        regP.Z = result == 0;
+        regP.N = (result >> 15) & 1;
+    }
 }
 
 void Cpu::ROL_A_execute() {
     // Rotate Left (accumulator)
 
-    uint8_t result = (regA << 1) | regP.C;
+    uint16_t result = (regA << 1) | regP.C;
 
     if (regP.M) {
 	regP.C = (regA >> 7) & 1;
@@ -1849,23 +1957,36 @@ void Cpu::ROL_A_execute() {
     	regA = result & 0x00ff;
     }
     else {
-	regP.C = (regA >> 15) & 1;
-	regP.Z = result == 0;
-	regP.N = (result >> 15) & 1;
+	    regP.C = (regA >> 15) & 1;
+	    regP.Z = result == 0;
+	    regP.N = (result >> 15) & 1;
 
-	regA = result;
+	    regA = result;
     }
 }
 
 void Cpu::ROR_mem_execute(uint32_t address, uint16_t operand) {
     // Rotate right (memory contents)
 
-    uint16_t result = ((operand >> 1) & 0x7fff) | (regP.C << 15);
-    mem.write_word(address, result);
+    uint16_t result;
 
-    regP.C = operand & 1;
-    regP.Z = result == 0;
-    regP.N = (result >> 15) & 1;
+    if (regP.M) {
+        result = ((operand >> 1) & 0x007ff) | (regP.C << 7);
+        mem.write_byte(address, result);
+
+        regP.C = operand & 1;
+        regP.Z = (uint8_t) result == 0;
+        regP.N = (result >> 7) & 1;
+    }
+    else {
+        result = ((operand >> 1) & 0x7fff) | (regP.C << 15);
+        mem.write_word(address, result);
+
+        regP.C = operand & 1;
+        regP.Z = result == 0;
+        regP.N = (result >> 15) & 1;
+        clock->cycles += 1;
+    }
 }
 
 void Cpu::ROR_A_execute() {
@@ -1909,16 +2030,16 @@ void Cpu::RTI_execute() {
     regPC = (PC_high << 8) | PC_low;
     
     if (regP.E) {
-	regP.X = 1;
-	regP.M = 1;
+	    regP.X = 1;
+	    regP.M = 1;
     }
     else {
-	regDB = pullStack();
+	    regPB = pullStack();
     }
 
     if (regP.X) {
-	regX &= 0x00ff;
-	regY &= 0x00ff;
+	    regX &= 0x00ff;
+	    regY &= 0x00ff;
     }
 }
 
@@ -1936,7 +2057,7 @@ void Cpu::RTL_execute() {
 
     uint8_t PC_low = pullStack();
     uint8_t PC_high = pullStack();
-    uint8_t regPB = pullStack();
+    regPB = pullStack();
     uint16_t PC = (PC_high << 8) | PC_low;
     regPC = PC + 1; //It had the last byte of the last instr
 }
@@ -1981,8 +2102,8 @@ void Cpu::SEP_execute(uint16_t operand) {
     regP.C |= (operand & 1);
 
     if (regP.X) {
-	regP.X &= 0x00ff;
-	regP.Y &= 0x00ff;
+	    regX &= 0x00ff;
+	    regY &= 0x00ff;
     }
 }
     
@@ -1992,9 +2113,12 @@ void Cpu::STA_execute(uint32_t address) {
     // M=A
 
     if (regP.M)
-	mem.write_byte(address, (uint8_t) regA);
-    else 
-	mem.write_word(address, regA);
+	    mem.write_byte(address, (uint8_t) regA);
+    else {
+	    mem.write_word(address, regA);
+        clock->cycles += 1;
+    }
+
 }
 
 void Cpu::STP_execute() {
@@ -2008,9 +2132,11 @@ void Cpu::STX_execute(uint32_t address) {
     // M=X
 
     if (regP.X)
-	mem.write_byte(address, (uint8_t) regX);
-    else
-	mem.write_word(address, regX);
+	    mem.write_byte(address, (uint8_t) regX);
+    else {
+	    mem.write_word(address, regX);
+        clock->cycles += 1;
+    }
 }
 
 void Cpu::STY_execute(uint32_t address) {
@@ -2018,9 +2144,11 @@ void Cpu::STY_execute(uint32_t address) {
     // M=Y
 
     if (regP.X)
-	mem.write_byte(address, (uint8_t) regY);
-    else
-	mem.write_word(address, regY);
+	    mem.write_byte(address, (uint8_t) regY);
+    else {
+	    mem.write_word(address, regY);
+        clock->cycles += 1;
+    }
 }
 
 void Cpu::STZ_execute(uint32_t address) {
@@ -2028,9 +2156,11 @@ void Cpu::STZ_execute(uint32_t address) {
     // M=0
 
     if (regP.M)
-	mem.write_byte(address, 0);
-    else
-	mem.write_word(address, 0);
+	    mem.write_byte(address, 0);
+    else {
+	    mem.write_word(address, 0);
+        clock->cycles += 1;
+    }
 }
 
 void Cpu::TAX_execute() {
@@ -2211,14 +2341,15 @@ void Cpu::TRB_execute(uint32_t address, uint16_t operand) {
     uint16_t result = operand & nregA;
 
     if (regP.M) {
-	mem.write_byte(address, (uint8_t) result);
+	    mem.write_byte(address, (uint8_t) result);
 
-	regP.Z = ((uint8_t) regA & (uint8_t) operand) == 0;
+	    regP.Z = ((uint8_t) regA & (uint8_t) operand) == 0;
     }
     else {
-	mem.write_word(address, result);
-	
-	regP.Z = regA & operand;
+	    mem.write_word(address, result);
+	    
+	    regP.Z = regA & operand;
+        clock->cycles += 2;
     }
 }
 
@@ -2228,14 +2359,15 @@ void Cpu::TSB_execute(uint32_t address, uint16_t operand) {
     uint16_t result = operand | regA;
 
     if (regP.M) {
-	mem.write_byte(address, (uint8_t) result);
+	    mem.write_byte(address, (uint8_t) result);
 
-	regP.Z = ((uint8_t) regA & (uint8_t) operand) == 0;
+	    regP.Z = ((uint8_t) regA & (uint8_t) operand) == 0;
     }
     else {
-	mem.write_word(address, result);
-	
-	regP.Z = regA & operand;
+	    mem.write_word(address, result);
+	    
+	    regP.Z = regA & operand;
+        clock->cycles += 2;
     }
 }
 
@@ -2288,7 +2420,7 @@ void Cpu::NMI_execute() {
     uint8_t procStat;
     procStat =  (regP.N) << 6 |
 		(regP.V) << 5 |
-		(regP.B) << 4 |
+		(regP.X) << 4 |
 		(regP.D) << 3 |
 		(regP.I) << 2 |
 		(regP.Z) << 1 |
@@ -2315,7 +2447,7 @@ uint8_t Cpu::pullStack() {
 }
 
 void Cpu::debug_dump(uint8_t inst) {
-    cout << "INSTRUCTION" << std::hex << (int) inst << endl;
+    cout << "INSTRUCTION" << std::hex << (unsigned) inst << endl;
     cout << "regA =  " << std::hex << (unsigned) regA << endl;
     cout << "regX =  " << std::hex << (unsigned) regX << endl;
     cout << "regY =  " << std::hex << (unsigned) regY << endl;
@@ -2324,10 +2456,12 @@ void Cpu::debug_dump(uint8_t inst) {
     cout << "regP =" << endl;
     cout << "    C = " << regP.C;
     cout << "    Z = " << regP.Z;
+    cout << "    M = " << regP.M;
     cout << "    I = " << regP.I;
     cout << "    D = " << regP.D;
-    cout << "    B = " << regP.B;
+    cout << "    X = " << regP.X;
     cout << "    V = " << regP.V;
-    cout << "    N = " << regP.N << endl;
+    cout << "    N = " << regP.N;
+    cout << "    E = " << regP.E << endl;
     cout << "cycles = " << clock->cycles << endl;
 }
