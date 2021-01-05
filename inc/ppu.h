@@ -1,12 +1,8 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
-#ifndef MEM_PPU_H
-#include "mem_ppu.h"
-#define MEM_PPU_H
-#endif
-#ifndef CPU_H
-#include "cpu.h"
-#define CPU_H
+#ifndef DEFINES_H
+#include "defines.h"
+#define DEFINES_H
 #endif
 using namespace std;
 
@@ -16,16 +12,57 @@ class Ppu {
 	void draw(int n_scanline);
 	void drawSprites(int n_scanline);
 	void drawScreen();
-	void checkSprite0Hit(int n_scanline);
 	void vblank();
-	void initColors();
-	Cpu *cpu;
-	Mem_ppu *mem_ppu;
+    void write_INIDISP(uint8_t data);
+    void write_OBSEL(uint8_t data);
+    void write_OAMADDL(uint8_t data);
+    void write_OAMADDH(uint8_t data);
+    void write_OAMDATA(uint8_t data);
+    void write_BGMODE(uint8_t data);
+    void write_MOSAIC(uint8_t data);
+    void write_BG1SC(uint8_t data);
+    void write_BG2SC(uint8_t data);
+    void write_BG3SC(uint8_t data);
+    void write_BG4SC(uint8_t data);
+    void write_BG12NBA(uint8_t data);
+    void write_BG34NBA(uint8_t data);
+    void write_BG1HOFS(uint8_t data);
+    void write_BG1VOFS(uint8_t data);
+    void write_BG2HOFS(uint8_t data);
+    void write_BG2VOFS(uint8_t data);
+    void write_BG3HOFS(uint8_t data);
+    void write_BG3VOFS(uint8_t data);
+    void write_BG4HOFS(uint8_t data);
+    void write_BG4VOFS(uint8_t data);
+    void write_BG5HOFS(uint8_t data);
+    void write_BG5VOFS(uint8_t data);
+    void write_BG6HOFS(uint8_t data);
+    void write_BG6VOFS(uint8_t data);
+    void write_VMAIN(uint8_t data);
+    void write_VMADDL(uint8_t data);
+    void write_VMADDH(uint8_t data);
+    void write_VMDATAL(uint8_t data);
+    void write_VMDATAH(uint8_t data);
+    void write_CGADD(uint8_t data);
+    void write_CGDATA(uint8_t data);
+    void write_TM(uint8_t data);
+    void write_TS(uint8_t data);
+    void write_CGWSEL(uint8_t data);
+    void write_CGADSUB(uint8_t data);
+    void write_COLDATA(uint8_t data);
+    uint8_t read_OAMDATAREAD();
+    uint8_t read_VMDATALREAD();
+    uint8_t read_VMDATAHREAD();
+    uint16_t read_CGDATAREAD();
+
 	Display *di;
 	int sc;
 	Window ro, wi;
 	GC gc;
-	uint32_t colors[64];
+
+    uint8_t *oam;
+    uint8_t *vram;
+    uint16_t *cg;
 
     bool Fblank, Hblank, Vblank;
     uint8_t brightness;
@@ -42,7 +79,7 @@ class Ppu {
     bool mode1_BG3_priority;
     bool BG1_mosaic, BG2_mosaic, BG3_mosaic, BG4_mosaic;
     uint8_t mosaic_pixel_size;
-    uint8_t BG1_tilemap_address, BG2_tilemap_address, BG3_tilemap_address, BG4_tilemap_address,
+    uint8_t BG1_tilemap_address, BG2_tilemap_address, BG3_tilemap_address, BG4_tilemap_address;
     bool BG1_tilemap_x_mirror, BG2_tilemap_x_mirror, BG3_tilemap_x_mirror, BG4_tilemap_x_mirror;
     bool BG1_tilemap_y_mirror, BG2_tilemap_y_mirror, BG3_tilemap_y_mirror, BG4_tilemap_y_mirror;
     uint8_t BG1_char_address, BG2_char_address, BG3_char_address, BG4_char_address;

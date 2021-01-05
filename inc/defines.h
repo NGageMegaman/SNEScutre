@@ -9,14 +9,10 @@ const uint32_t E_COP_INT_VECTOR_ADDR = 0x00fff4;
 const uint32_t E_NMI_INT_VECTOR_ADDR = 0x00fffa;
 const uint32_t E_RST_INT_VECTOR_ADDR = 0x00fffc;
 const uint32_t E_BRK_INT_VECTOR_ADDR = 0x00fffe;
-const unsigned int RAM_SIZE = 0x1000000;
-const unsigned int PPU_RAM_SIZE = 0x4000;
-const int PRG_ROM_SIZE = 0x4000;
-const int PRG_ROM_START = 0x8000;
-const int HEADER_SIZE = 16;
-const int CHR_ROM_SIZE = 0x2000;
-const int PPU_CHR_ROM_START = 0x0;
-const int NAMETABLE_SIZE = 0x3C0;
+const uint32_t RAM_SIZE  = 0x1000000;
+const uint32_t OAM_SIZE  = 512 + 32; //Lower table + Upper table, 10 bits
+const uint32_t VRAM_SIZE = 65536; //64kb, 16 bits
+const uint32_t CG_SIZE   = 256; //8 bits
 
 enum addr_mode_t {
     IMPLIED,

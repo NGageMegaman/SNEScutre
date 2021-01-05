@@ -14,8 +14,10 @@ using namespace std;
 
 int main() {
     Clock nes_clock;
+    Ppu nes_ppu;
     Cpu nes_cpu;
     nes_cpu.clock = &nes_clock;
+    nes_cpu.mem.ppu = &nes_ppu;
     while(1) {
 	    nes_cpu.execute();
     }

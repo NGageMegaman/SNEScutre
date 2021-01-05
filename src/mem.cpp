@@ -86,19 +86,19 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 
 void Mem::write_word(uint32_t address, uint16_t data) {
     address = mirror(address);
-    if (!access_memory_mapped(address, data, NULL, true)) 
+    if (!access_memory_mapped(address, (data & 0x00ff), NULL, true)) 
         ram[address] = data & 0x00ff;
-    if (!access_memory_mapped(address+1, data, NULL, true)) 
+    if (!access_memory_mapped(address+1, ((data >> 8) & 0x00ff), NULL, true)) 
         ram[address+1] = (data >> 8) & 0x00ff;
 }
 
 void Mem::write_long(uint32_t address, uint32_t data) {
     address = mirror(address);
-    if (!access_memory_mapped(address, data, NULL, true)) 
+    if (!access_memory_mapped(address, (data & 0x0000ff), NULL, true)) 
         ram[address] = data & 0x0000ff;
-    if (!access_memory_mapped(address+1, data, NULL, true)) 
+    if (!access_memory_mapped(address+1,((data>>8) & 0x0000ff), NULL, true)) 
         ram[address+1] = (data >> 8) & 0x0000ff;
-    if (!access_memory_mapped(address+2, data, NULL, true)) 
+    if (!access_memory_mapped(address+2,((data>>16) & 0x0000ff), NULL, true)) 
         ram[address+2] = (data >> 16) & 0x0000ff;
 }
 
@@ -125,8 +125,8 @@ uint32_t Mem::mirror(uint32_t address) {
 
 bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, bool wr) {
     //We check for memory mapped addresses
-    switch (address) {
-        if (wr) {
+    if (wr) {
+        switch (address) {
             case(0x2100):
                 ppu->write_INIDISP(data);
                 break;
@@ -193,9 +193,6 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
             case(0x2115):
                 ppu->write_VMAIN(data);
                 break;
-            case(0x2115):
-                ppu->write_VMAIN(data);
-                break;
             case(0x2116):
                 ppu->write_VMADDL(data);
                 break;
@@ -219,7 +216,7 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
                 ppu->write_CGADD(data);
                 break;
             case (0x2122):
-                ppu->write_CGRAM(data);
+                ppu->write_CGDATA(data);
                 break;
             //W12SEL
             //W34SEL
@@ -247,9 +244,6 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
             case (0x2132):
                 ppu->write_COLDATA(data);
                 break;
-            case (0x2133):
-                ppu->write_SETINI(data);
-                break;
             default:
                 return false;
         }
@@ -257,15 +251,16 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
     else {
         if (address == 0x2138)
             *result = ppu->read_OAMDATAREAD();
-        else if (address = 0x2139)
+        else if (address == 0x2139)
             *result = ppu->read_VMDATALREAD();
-        else if (address = 0x213a)
+        else if (address == 0x213a)
             *result = ppu->read_VMDATAHREAD();
-        else if (address = 0x213b)
+        else if (address == 0x213b)
             *result = ppu->read_CGDATAREAD();
         else
             return false;
     }
+    //If a function was executed, we get here
     return true;
 }
 

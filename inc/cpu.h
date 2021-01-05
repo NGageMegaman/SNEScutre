@@ -1,5 +1,8 @@
 #include <stdint.h>
+#ifndef MEM_H
 #include "mem.h"
+#define MEM_H
+#endif
 #ifndef CLOCK_H
 #include "clock.h"
 #define CLOCK_H

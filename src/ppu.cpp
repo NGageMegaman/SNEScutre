@@ -20,22 +20,15 @@ Ppu::Ppu() {
     XAutoRepeatOff(di);
     gc = XCreateGC(di, ro, 0, NULL);
     XMapWindow(di, wi); //Make window visible
-    XStoreName(di, wi, "NEScutre");
-    initColors();
-}
+    XStoreName(di, wi, "SNEScutre");
 
-void Ppu::checkSprite0Hit(int n_scanline) {
-    int pos_y = mem_ppu->oam[0];
-    
-    if (n_scanline == pos_y) {
-        if (pos_y == n_scanline) {
-	        mem_ppu->PPUSTATUS |= 0x40;
-    	}
-    }
+    oam = (uint8_t *) malloc(sizeof(uint8_t) * OAM_SIZE);
+    vram = (uint8_t *) malloc(sizeof(uint8_t) * VRAM_SIZE);
+    cg = (uint16_t *) malloc(sizeof(uint16_t) * CG_SIZE);
 }
-	
 
 void Ppu::drawSprites(int n_scanline) {
+    /*
     //Select what events the window will listen to
     uint8_t index, attribute, palette;
     int pos_x, pos_y;
@@ -144,9 +137,11 @@ void Ppu::drawSprites(int n_scanline) {
 	    }
 	}
     }
+    */
 }
 
 void Ppu::draw(int n_scanline) {
+    /*
     //Select what events the window will listen to
     //XEvent ev;
     unsigned int nametable;
@@ -205,13 +200,13 @@ void Ppu::draw(int n_scanline) {
 
             	    	    //Compute the bitplane
 
-            	    	    /*
-            	    	    Each tile is formed by two bitplanes. The first one
-            	    	    is followed by the second one. We fetch the line_addr byte,
-            	    	    which contains the first bitplane of a given line, and the
-            	    	    line_addr+8 byte, which contains the second one. Using
-            	    	    h_offset we get the particular bit of the line that we want
-            	    	    */
+            	    	    
+            	    	    //Each tile is formed by two bitplanes. The first one
+            	    	    //is followed by the second one. We fetch the line_addr byte,
+            	    	    //which contains the first bitplane of a given line, and the
+            	    	    //line_addr+8 byte, which contains the second one. Using
+            	    	    //h_offset we get the particular bit of the line that we want
+            	    	    
 
 	    	    	    unsigned char bitplane = 
 	    	    	     (((mem_ppu->ram[line_addr]  )>>h_offset)&1) |
@@ -221,20 +216,20 @@ void Ppu::draw(int n_scanline) {
             	    	    //TODO: this can be done outside the tile render loop
 	    	    	    attribute_addr = nametable + 0x03c0;
             	    	    
-            	    	    /*
-            	    	    Each attribute contains 4 pallette indexes corresponding to
-            	    	    a 2x2 tile portion of the screen. They are arranged, from
-            	    	    MSB to LSB as such:
+            	    	    
+            	    	    //Each attribute contains 4 pallette indexes corresponding to
+            	    	    //a 2x2 tile portion of the screen. They are arranged, from
+            	    	    //MSB to LSB as such:
 
-            	    	    bottom right, bottom left, top right, top left
-            	    	         7,6           5,4        3,2       1,0
+            	    	    //bottom right, bottom left, top right, top left
+            	    	    //     7,6           5,4        3,2       1,0
 
-            	    	    That means that each pattern contains the pallette of
-            	    	    two different rows and two different columns. If the
-            	    	    row is odd, we shift the attribute 4 bits right, and if the
-            	    	    column is odd, we shift the attribute 2 bits right. This
-            	    	    way we get the correct pallette index on the lower 2 bits.
-            	    	    */
+            	    	    //That means that each pattern contains the pallette of
+            	    	    //two different rows and two different columns. If the
+            	    	    //row is odd, we shift the attribute 4 bits right, and if the
+            	    	    //column is odd, we shift the attribute 2 bits right. This
+            	    	    //way we get the correct pallette index on the lower 2 bits.
+            	    	    
 
 	    	    	    //Determine the attribute address
 	    	            attribute_addr = attribute_addr + (i/4)*8;
@@ -262,21 +257,24 @@ void Ppu::draw(int n_scanline) {
 	    }
 	}
     }
+    */
 }
 
 void Ppu::drawScreen() {
-    for (int i = 0; i<61440; ++i) {
-	XSetForeground(di, gc, mem_ppu->vram[i]);
-	XDrawPoint(di, wi, gc, (i%256), (i/256));
+    for (uint32_t i = 0; i<VRAM_SIZE; ++i) {
+	    XSetForeground(di, gc, vram[i]);
+	    XDrawPoint(di, wi, gc, (i%256), (i/256));
     }
 }
 
 void Ppu::vblank() {
+    /*
     //Set the vblank bit
     mem_ppu->PPUSTATUS = mem_ppu->PPUSTATUS | 0x80;
     mem_ppu->in_vblank = true;
     if ((mem_ppu->PPUCTRL >> 7) & 1)
 	cpu->NMI_execute();
+    */
 }
 
 ///////////////////
@@ -305,7 +303,7 @@ void Ppu::write_OAMADDL(uint8_t data) {
 void Ppu::write_OAMADDH(uint8_t data) {
     //p------b
     OAMADDH = data & 0x01;
-    obj_priority_bit (data >> 7) & 0x01;
+    obj_priority_bit = (data >> 7) & 0x01;
     oam_address = ((OAMADDH & 1) << 8) | OAMADDL;
 }
 
@@ -691,6 +689,7 @@ uint8_t Ppu::read_OAMDATAREAD() {
         oam_address++;
         oam_h_addr = 1;
     }
+    return result;
 }
 
 uint8_t Ppu::read_VMDATALREAD() {
@@ -724,6 +723,7 @@ uint8_t Ppu::read_VMDATALREAD() {
             vram_address += 128;
         }
     }
+    return result;
 }
 
 uint8_t Ppu::read_VMDATAHREAD() {
@@ -757,77 +757,11 @@ uint8_t Ppu::read_VMDATAHREAD() {
             vram_address += 128;
         }
     }
+    return result;
 }
 
 uint16_t Ppu::read_CGDATAREAD() {
-    uint16_t result = cg[cg_address]
+    uint16_t result = cg[cg_address];
     cg_address++;
     return result;
 }   
-
-void Ppu::initColors() {
-    colors[0]  = (84  << 16) | (84  << 8 ) | 84;
-    colors[1]  = (0   << 16) | (30  << 8 ) | 116;
-    colors[2]  = (8   << 16) | (16  << 8 ) | 144;
-    colors[3]  = (48  << 16) | (0   << 8 ) | 136;
-    colors[4]  = (68  << 16) | (0   << 8 ) | 100;
-    colors[5]  = (92  << 16) | (0   << 8 ) | 48;
-    colors[6]  = (84  << 16) | (4   << 8 ) | 0;
-    colors[7]  = (60  << 16) | (24  << 8 ) | 0;
-    colors[8]  = (32  << 16) | (42  << 8 ) | 0;
-    colors[9]  = (8   << 16) | (58  << 8 ) | 0;
-    colors[10] = (0   << 16) | (64  << 8 ) | 0;
-    colors[11] = (0   << 16) | (60  << 8 ) | 0;
-    colors[12] = (0   << 16) | (50  << 8 ) | 0;
-    colors[13] = (0   << 16) | (0   << 8 ) | 0;
-    colors[14] = (0   << 16) | (0   << 8 ) | 0;
-    colors[15] = (0   << 16) | (0   << 8 ) | 0;
-    colors[16] = (152 << 16) | (150 << 8 ) | 152;
-    colors[17] = (8   << 16) | (76  << 8 ) | 196;
-    colors[18] = (48  << 16) | (50  << 8 ) | 236;
-    colors[19] = (92  << 16) | (30  << 8 ) | 228;
-    colors[20] = (136 << 16) | (20  << 8 ) | 176;
-    colors[21] = (160 << 16) | (20  << 8 ) | 100;
-    colors[22] = (152 << 16) | (34  << 8 ) | 32;
-    colors[23] = (120 << 16) | (60  << 8 ) | 0;
-    colors[24] = (84  << 16) | (90  << 8 ) | 0;
-    colors[25] = (40  << 16) | (114 << 8 ) | 0;
-    colors[26] = (8   << 16) | (124 << 8 ) | 0;
-    colors[27] = (0   << 16) | (118 << 8 ) | 40;
-    colors[28] = (0   << 16) | (102 << 8 ) | 120;
-    colors[29] = (0   << 16) | (0   << 8 ) | 0;
-    colors[30] = (0   << 16) | (0   << 8 ) | 0;
-    colors[31] = (0   << 16) | (0   << 8 ) | 0;
-    colors[32] = (236 << 16) | (238 << 8 ) | 236;
-    colors[33] = (76  << 16) | (154 << 8 ) | 236;
-    colors[34] = (120 << 16) | (124 << 8 ) | 236;
-    colors[35] = (176 << 16) | (98  << 8 ) | 236;
-    colors[36] = (228 << 16) | (84  << 8 ) | 236;
-    colors[37] = (236 << 16) | (88  << 8 ) | 180;
-    colors[38] = (236 << 16) | (106 << 8 ) | 100;
-    colors[39] = (212 << 16) | (136 << 8 ) | 32;
-    colors[40] = (160 << 16) | (170 << 8 ) | 0;
-    colors[41] = (116 << 16) | (196 << 8 ) | 0;
-    colors[42] = (76  << 16) | (208 << 8 ) | 32;
-    colors[43] = (56  << 16) | (204 << 8 ) | 108;
-    colors[44] = (56  << 16) | (180 << 8 ) | 204;
-    colors[45] = (60  << 16) | (60  << 8 ) | 60;
-    colors[46] = (0   << 16) | (0   << 8 ) | 0;
-    colors[47] = (0   << 16) | (0   << 8 ) | 0;
-    colors[48] = (236 << 16) | (238 << 8 ) | 236;
-    colors[49] = (168 << 16) | (204 << 8 ) | 236;
-    colors[50] = (188 << 16) | (188 << 8 ) | 236;
-    colors[51] = (212 << 16) | (178 << 8 ) | 236;
-    colors[52] = (236 << 16) | (174 << 8 ) | 236;
-    colors[53] = (236 << 16) | (174 << 8 ) | 212;
-    colors[54] = (236 << 16) | (180 << 8 ) | 176;
-    colors[55] = (228 << 16) | (196 << 8 ) | 144;
-    colors[56] = (204 << 16) | (210 << 8 ) | 120;
-    colors[57] = (180 << 16) | (222 << 8 ) | 120;
-    colors[58] = (168 << 16) | (226 << 8 ) | 144;
-    colors[59] = (152 << 16) | (226 << 8 ) | 180;
-    colors[60] = (160 << 16) | (214 << 8 ) | 228;
-    colors[61] = (160 << 16) | (162 << 8 ) | 160;
-    colors[62] = (0   << 16) | (0   << 8 ) | 0;
-    colors[63] = (0   << 16) | (0   << 8 ) | 0;
-}
