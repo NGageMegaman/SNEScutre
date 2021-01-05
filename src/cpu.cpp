@@ -7,8 +7,8 @@ Cpu::Cpu() {
     regX = regY = regA = 0x0000;
     regPC = mem.read_word(0xFFFC);
     regSP = 0x01ff;
-    regP.C = regP.Z = regP.I = regP.D = regP.X = regP.M = regP.V = regP.N = 0;
-    regP.E = 0;
+    regP.C = regP.Z = regP.V = regP.N = regP.D = regP.E = 0;
+    regP.M = regP.X = regP.I = 1;
     regPB = 0x00;
     regDB = 0x00;
     regDP = 0x0000;
@@ -110,6 +110,7 @@ void Cpu::execute() {
 	    break;
     case COP:
         COP_execute();
+        break;
 	case CPX1: case CPX2: case CPX3:
 	    CPX_execute(operand);
 	    break;
@@ -145,10 +146,10 @@ void Cpu::execute() {
 	case INY:
 	    INY_execute();
 	    break;
-	case JMP1: case JMP3: case JMP4: case JMP5:
+	case JMP1: case JMP3: case JMP4:
 	    JMP_execute(address);
 	    break;
-    case JMP2:
+    case JMP2: case JMP5:
         JML_execute(address);
         break;
 	case JSR1: case JSR2:
@@ -156,6 +157,7 @@ void Cpu::execute() {
 	    break;
     case JSL:
         JSL_execute(address);
+        break;
 	case LDA1: case LDA2: case LDA3: case LDA4: case LDA5:
     case LDA6: case LDA7: case LDA8: case LDA9: case LDAa:
     case LDAb: case LDAc: case LDAd: case LDAe: case LDAf:
@@ -289,6 +291,7 @@ void Cpu::execute() {
 	    break;
     case STZ1: case STZ2: case STZ3: case STZ4:
         STZ_execute(address);
+        break;
 	case TAX:
 	    TAX_execute();
 	    break;
@@ -517,10 +520,12 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
     case 0x07:
         read_operand_direct_indirect_long(addr_mode, address, operand);    
 	case 0x09:
-        if (regP.M)
+        if (regP.M) {
             read_operand_immediate(addr_mode, address, operand);
-        else
+        }
+        else {
             read_operand_immediate_long(addr_mode, address, operand);
+        }
         break;
 	case 0x0c:
 	    if (opcode == JMP3) 
@@ -611,6 +616,8 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
 	    else 
             read_operand_absolute_indexed_x(addr_mode, address, operand);
 	    break;
+    case 0x1f:
+        read_operand_absolute_long_indexed(addr_mode, address, operand);
 	default:
 	    regPC = regPC + 1; //No operand
     }
@@ -969,6 +976,7 @@ void Cpu::ADC_execute(uint16_t operand) {
         signRegA = (regA >> 7) & 1;
         signOperand = (operand >> 7) & 1;
         regP.Z = result == 0;
+        regA = result;
         clock->cycles += 1;
     }
 
@@ -1258,6 +1266,7 @@ void Cpu::CMP_execute(uint16_t operand) {
         regP.N = (comp >> 7) & 1;
     }
     else {
+        cout << std::hex << (unsigned) operand << endl;
         regP.C = regA >= operand;
         regP.Z = regA == operand;
         regP.N = (comp >> 15) & 1;
@@ -1483,7 +1492,7 @@ void Cpu::JML_execute(uint32_t address) {
     //Jump long
 
     regPC = address;
-    regPB = (address >> 16) & 0x00ff;
+    regPB = (address >> 16) & 0x0000ff;
 }
 
 void Cpu::JSR_execute(uint32_t address) {
@@ -2453,15 +2462,18 @@ void Cpu::debug_dump(uint8_t inst) {
     cout << "regY =  " << std::hex << (unsigned) regY << endl;
     cout << "regPC = " << std::hex << (unsigned) regPC << endl;
     cout << "regSP = " << std::hex << (unsigned) regSP << endl;
+    cout << "regDP = " << std::hex << (unsigned) regDP << endl;
+    cout << "regDB = " << std::hex << (unsigned) regDB << endl;
+    cout << "regPB = " << std::hex << (unsigned) regPB << endl;
     cout << "regP =" << endl;
-    cout << "    C = " << regP.C;
-    cout << "    Z = " << regP.Z;
-    cout << "    M = " << regP.M;
-    cout << "    I = " << regP.I;
-    cout << "    D = " << regP.D;
-    cout << "    X = " << regP.X;
-    cout << "    V = " << regP.V;
-    cout << "    N = " << regP.N;
-    cout << "    E = " << regP.E << endl;
+    cout << "    C = " << (unsigned) regP.C;
+    cout << "    Z = " << (unsigned) regP.Z;
+    cout << "    M = " << (unsigned) regP.M;
+    cout << "    I = " << (unsigned) regP.I;
+    cout << "    D = " << (unsigned) regP.D;
+    cout << "    X = " << (unsigned) regP.X;
+    cout << "    V = " << (unsigned) regP.V;
+    cout << "    N = " << (unsigned) regP.N;
+    cout << "    E = " << (unsigned) regP.E << endl;
     cout << "cycles = " << clock->cycles << endl;
 }

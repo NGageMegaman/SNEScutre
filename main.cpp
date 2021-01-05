@@ -17,6 +17,6 @@ int main() {
     Cpu nes_cpu;
     nes_cpu.clock = &nes_clock;
     while(1) {
-	    //nes_cpu.execute();
+	    nes_cpu.execute();
     }
 }

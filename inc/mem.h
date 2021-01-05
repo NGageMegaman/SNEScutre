@@ -19,4 +19,5 @@ class Mem {
 	    void write_long(uint32_t address, uint32_t data);
 	    void load_rom(char *name);
 	    unsigned char *ram;
+        bool spc_transfer;
 };
