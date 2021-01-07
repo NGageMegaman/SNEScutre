@@ -18,11 +18,14 @@ int main() {
     Cpu snes_cpu;
     snes_cpu.clock = &snes_clock;
     snes_cpu.mem.ppu = &snes_ppu;
-    int count;
+    int count = 0;
+    int count2 = 0;
     while(1) {
 	    if (count > 100000) {
-		snes_ppu.drawBG(1,0);
+		snes_ppu.drawBG(3);
 		snes_ppu.drawScreen();
+		cout << "NMI " << count2 << endl;
+		++count2;
 		snes_cpu.NMI_execute();
 		count = 0;
 	    }

@@ -154,6 +154,7 @@ class Cpu {
 	    void XCE_execute();
 
 	    void NMI_execute();
+	    void IRQ_execute();
 	    void pushStack(uint8_t data);
 	    uint8_t pullStack();
 	    void debug_dump(uint8_t inst);

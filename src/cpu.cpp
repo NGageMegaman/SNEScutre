@@ -39,317 +39,324 @@ void Cpu::execute() {
     add_clock_cycles(opcode, address, addr_mode);
 
     switch (opcode) {
-	case ADC1: case ADC2: case ADC3: case ADC4: case ADC5:
-	case ADC6: case ADC7: case ADC8: case ADC9: case ADCa:
-    case ADCb: case ADCc: case ADCd: case ADCe: case ADCf:
-	    ADC_execute(operand);
+        case ADC1: case ADC2: case ADC3: case ADC4: case ADC5:
+        case ADC6: case ADC7: case ADC8: case ADC9: case ADCa:
+        case ADCb: case ADCc: case ADCd: case ADCe: case ADCf:
+            ADC_execute(operand);
+            break;
+        case AND1: case AND2: case AND3: case AND4: case AND5:
+        case AND6: case AND7: case AND8: case AND9: case ANDa:
+        case ANDb: case ANDc: case ANDd: case ANDe: case ANDf:
+            AND_execute(operand);
+            break;
+        case ASL2:
+            ASL_A_execute();
+            break;
+        case ASL1: case ASL3: case ASL4: case ASL5:
+            ASL_mem_execute(address, operand);
+            break;
+        case BCC:
+            BCC_execute(address);
+            break;
+        case BCS:
+            BCS_execute(address);
+            break;
+        case BEQ:
+            BEQ_execute(address);
+            break;
+        case BIT1: case BIT2: case BIT3: case BIT4: case BIT5:
+            BIT_execute(operand);
+            break;
+        case BMI:
+            BMI_execute(address);
+            break;
+        case BNE:
+            BNE_execute(address);
+            break;
+        case BPL:
+            BPL_execute(address);
+            break;
+        case BRA:
+            BRA_execute(address);
+            break;
+        case BRK:
+            BRK_execute();
+            break;
+        case BRL:
+            BRL_execute(address);
+            break;
+        case BVC:
+            BVC_execute(address);
+            break;
+        case BVS:
+            BVS_execute(address);
+            break;
+        case CLC:
+            CLC_execute();
+            break;
+        case CLD:
+            CLD_execute();
+            break;
+        case CLI:
+            CLI_execute();
+            break;
+        case CLV:
+            CLV_execute();
+            break;
+        case CMP1: case CMP2: case CMP3: case CMP4: case CMP5:
+        case CMP6: case CMP7: case CMP8: case CMP9: case CMPa:
+        case CMPb: case CMPc: case CMPd: case CMPe: case CMPf:
+            CMP_execute(operand);
+            break;
+        case COP:
+            COP_execute();
+            break;
+        case CPX1: case CPX2: case CPX3:
+            CPX_execute(operand);
+            break;
+        case CPY1: case CPY2: case CPY3:
+            CPY_execute(operand);
+            break;
+        case DEC2: case DEC3: case DEC4: case DEC5:
+            DEC_mem_execute(address, operand);
+            break;
+        case DEC1:
+            DEC_A_execute();
+            break;
+        case DEX:
+            DEX_execute();
+            break;
+        case DEY:
+            DEY_execute();
+            break;
+        case EOR1: case EOR2: case EOR3: case EOR4: case EOR5:
+        case EOR6: case EOR7: case EOR8: case EOR9: case EORa:
+        case EORb: case EORc: case EORd: case EORe: case EORf:
+            EOR_execute(operand);
+            break;
+        case INC2: case INC3: case INC4: case INC5:
+            INC_mem_execute(address, operand);
+            break;
+        case INC1:
+            INC_A_execute();
+            break;
+        case INX:
+            INX_execute();
+            break;
+        case INY:
+            INY_execute();
+            break;
+        case JMP1: case JMP3: case JMP4:
+            JMP_execute(address);
+            break;
+        case JMP2: case JMP5:
+            JML_execute(address);
+            break;
+        case JSR1: case JSR2:
+	    JSR_execute(address);
 	    break;
-	case AND1: case AND2: case AND3: case AND4: case AND5:
-	case AND6: case AND7: case AND8: case AND9: case ANDa:
-    case ANDb: case ANDc: case ANDd: case ANDe: case ANDf:
-	    AND_execute(operand);
+        case JSL:
+            JSL_execute(address);
 	    break;
-	case ASL2:
-	    ASL_A_execute();
+        case LDA1: case LDA2: case LDA3: case LDA4: case LDA5:
+        case LDA6: case LDA7: case LDA8: case LDA9: case LDAa:
+        case LDAb: case LDAc: case LDAd: case LDAe: case LDAf:
+            LDA_execute(operand);
 	    break;
-	case ASL1: case ASL3: case ASL4: case ASL5:
-	    ASL_mem_execute(address, operand);
+        case LDX1: case LDX2: case LDX3: case LDX4: case LDX5:
+            LDX_execute(operand);
+            break;
+        case LDY1: case LDY2: case LDY3: case LDY4: case LDY5:
+            LDY_execute(operand);
+            break;
+        case LSR1: case LSR3: case LSR4: case LSR5:
+            LSR_mem_execute(address, operand);
+            break;
+        case LSR2:
+            LSR_A_execute();
+            break;
+        case MVN:
+            MVN_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
+            break;
+        case MVP:
+            MVP_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
+            break;
+        case ORA1: case ORA2: case ORA3: case ORA4: case ORA5:
+        case ORA6: case ORA7: case ORA8: case ORA9: case ORAa:
+        case ORAb: case ORAc: case ORAd: case ORAe: case ORAf:
+	    ORA_execute(operand);
 	    break;
-	case BCC:
-	    BCC_execute(address);
+        case PEA:
+            PEA_execute(address);
+            break;
+        case PEI:
+            PEI_execute(address);
+            break;
+        case PER:
+            PER_execute(address);
+            break;
+        case PHA:
+	    PHA_execute();
 	    break;
-	case BCS:
-	    BCS_execute(address);
-	    break;
-	case BEQ:
-	    BEQ_execute(address);
-	    break;
-	case BIT1: case BIT2: case BIT3: case BIT4: case BIT5:
-	    BIT_execute(operand);
-	    break;
-	case BMI:
-	    BMI_execute(address);
-	    break;
-	case BNE:
-	    BNE_execute(address);
-	    break;
-	case BPL:
-	    BPL_execute(address);
-	    break;
-    case BRA:
-        BRA_execute(address);
-        break;
-	case BRK:
-	    BRK_execute();
-	    break;
-    case BRL:
-        BRL_execute(address);
-        break;
-	case BVC:
-	    BVC_execute(address);
-	    break;
-	case BVS:
-	    BVS_execute(address);
-	    break;
-	case CLC:
-	    CLC_execute();
-	    break;
-	case CLD:
-	    CLD_execute();
-	    break;
-	case CLI:
-	    CLI_execute();
-	    break;
-	case CLV:
-	    CLV_execute();
-	    break;
-	case CMP1: case CMP2: case CMP3: case CMP4: case CMP5:
-    case CMP6: case CMP7: case CMP8: case CMP9: case CMPa:
-    case CMPb: case CMPc: case CMPd: case CMPe: case CMPf:
-	    CMP_execute(operand);
-	    break;
-    case COP:
-        COP_execute();
-        break;
-	case CPX1: case CPX2: case CPX3:
-	    CPX_execute(operand);
-	    break;
-	case CPY1: case CPY2: case CPY3:
-	    CPY_execute(operand);
-	    break;
-	case DEC2: case DEC3: case DEC4: case DEC5:
-	    DEC_mem_execute(address, operand);
-	    break;
-    case DEC1:
-        DEC_A_execute();
-        break;
-	case DEX:
-	    DEX_execute();
-	    break;
-	case DEY:
-	    DEY_execute();
-	    break;
-	case EOR1: case EOR2: case EOR3: case EOR4: case EOR5:
-    case EOR6: case EOR7: case EOR8: case EOR9: case EORa:
-    case EORb: case EORc: case EORd: case EORe: case EORf:
-	    EOR_execute(operand);
-	    break;
-	case INC2: case INC3: case INC4: case INC5:
-	    INC_mem_execute(address, operand);
-	    break;
-    case INC1:
-        INC_A_execute();
-        break;
-    case INX:
-        INX_execute();
-        break;
-    case INY:
-        INY_execute();
-        break;
-    case JMP1: case JMP3: case JMP4:
-        JMP_execute(address);
-        break;
-    case JMP2: case JMP5:
-        JML_execute(address);
-        break;
-    case JSR1: case JSR2:
-	JSR_execute(address);
-	break;
-    case JSL:
-        JSL_execute(address);
-	break;
-    case LDA1: case LDA2: case LDA3: case LDA4: case LDA5:
-    case LDA6: case LDA7: case LDA8: case LDA9: case LDAa:
-    case LDAb: case LDAc: case LDAd: case LDAe: case LDAf:
-        LDA_execute(operand);
-	break;
-    case LDX1: case LDX2: case LDX3: case LDX4: case LDX5:
-        LDX_execute(operand);
-        break;
-    case LDY1: case LDY2: case LDY3: case LDY4: case LDY5:
-        LDY_execute(operand);
-        break;
-    case LSR1: case LSR3: case LSR4: case LSR5:
-        LSR_mem_execute(address, operand);
-        break;
-    case LSR2:
-        LSR_A_execute();
-        break;
-    case MVN:
-        MVN_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
-        break;
-    case MVP:
-        MVP_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
-        break;
-    case ORA1: case ORA2: case ORA3: case ORA4: case ORA5:
-    case ORA6: case ORA7: case ORA8: case ORA9: case ORAa:
-    case ORAb: case ORAc: case ORAd: case ORAe: case ORAf:
-	ORA_execute(operand);
-	break;
-    case PEA:
-        PEA_execute(address);
-        break;
-    case PEI:
-        PEI_execute(address);
-        break;
-    case PER:
-        PER_execute(address);
-        break;
-    case PHA:
-	PHA_execute();
-	break;
-    case PHB:
-        PHB_execute();
-        break;
-    case PHD:
-        PHD_execute();
-        break;
-    case PHK:
-        PHK_execute();
-        break;
-	case PHP:
-	    PHP_execute();
-	    break;
-    case PHX:
-        PHX_execute();
-        break;
-    case PHY:
-        PHY_execute();
-        break;
-    case PLA:
-	    PLA_execute();
-	    break;
-    case PLB:
-        PLB_execute();
-        break;
-    case PLD:
-        PLD_execute();
-        break;
-	case PLP:
-	    PLP_execute();
-        break;
-    case PLX:
-        PLX_execute();
-        break;
-    case PLY:
-        PLY_execute();
-        break;
-    case REP:
-        REP_execute(operand);
-        break;
-	case ROL1: case ROL3: case ROL4: case ROL5:
-	    ROL_mem_execute(address, operand);
-	    break;
-	case ROL2:
+        case PHB:
+            PHB_execute();
+            break;
+        case PHD:
+            PHD_execute();
+            break;
+        case PHK:
+            PHK_execute();
+            break;
+        case PHP:
+            PHP_execute();
+            break;
+        case PHX:
+            PHX_execute();
+            break;
+        case PHY:
+            PHY_execute();
+            break;
+        case PLA:
+            PLA_execute();
+            break;
+        case PLB:
+            PLB_execute();
+            break;
+        case PLD:
+            PLD_execute();
+            break;
+        case PLP:
+            PLP_execute();
+            break;
+        case PLX:
+            PLX_execute();
+            break;
+        case PLY:
+            PLY_execute();
+            break;
+        case REP:
+            REP_execute(operand);
+            break;
+        case ROL1: case ROL3: case ROL4: case ROL5:
+            ROL_mem_execute(address, operand);
+            break;
+        case ROL2:
 	    ROL_A_execute();
-	    break;
-	case ROR1: case ROR3: case ROR4: case ROR5:
-	    ROR_mem_execute(address, operand);
-	    break;
-	case ROR2:
-	    ROR_A_execute();
-	    break;
-	case RTI:
-	    RTI_execute();
-	    break;
-    case RTL:
-        RTL_execute();
-        break;
-	case RTS:
-	    RTS_execute();
-	    break;
-	case SBC1: case SBC2: case SBC3: case SBC4: case SBC5:
-	case SBC6: case SBC7: case SBC8: case SBC9: case SBCa:
-    case SBCb: case SBCc: case SBCd: case SBCe: case SBCf:
-	    SBC_execute(operand);
-	    break;
-	case SEC:
-	    SEC_execute();
-	    break;
-	case SED:
-	    SED_execute();
-	    break;
-	case SEI:
-	    SEI_execute();
-	    break;
-    case SEP:
-        SEP_execute(operand);
-        break;
-	case STA1: case STA2: case STA3: case STA4: case STA5:
-	case STA6: case STA7: case STA8: case STA9: case STAa:
-    case STAb: case STAc: case STAd: case STAe:
+            break;
+        case ROR1: case ROR3: case ROR4: case ROR5:
+            ROR_mem_execute(address, operand);
+            break;
+        case ROR2:
+            ROR_A_execute();
+            break;
+        case RTI:
+            RTI_execute();
+            break;
+        case RTL:
+            RTL_execute();
+            break;
+        case RTS:
+            RTS_execute();
+            break;
+        case SBC1: case SBC2: case SBC3: case SBC4: case SBC5:
+        case SBC6: case SBC7: case SBC8: case SBC9: case SBCa:
+        case SBCb: case SBCc: case SBCd: case SBCe: case SBCf:
+            SBC_execute(operand);
+            break;
+        case SEC:
+            SEC_execute();
+            break;
+        case SED:
+            SED_execute();
+            break;
+        case SEI:
+            SEI_execute();
+            break;
+        case SEP:
+            SEP_execute(operand);
+            break;
+        case STA1: case STA2: case STA3: case STA4: case STA5:
+        case STA6: case STA7: case STA8: case STA9: case STAa:
+        case STAb: case STAc: case STAd: case STAe:
 	    STA_execute(address);
 	    break;
-    case STP:
-        STP_execute();
-        break;
-	case STX1: case STX2: case STX3:
-	    STX_execute(address);
+        case STP:
+            STP_execute();
+            break;
+        case STX1: case STX2: case STX3:
+            STX_execute(address);
+            break;
+        case STY1: case STY2: case STY3:
+            STY_execute(address);
+            break;
+        case STZ1: case STZ2: case STZ3: case STZ4:
+	    STZ_execute(address);
 	    break;
-	case STY1: case STY2: case STY3:
-	    STY_execute(address);
-	    break;
-    case STZ1: case STZ2: case STZ3: case STZ4:
-        STZ_execute(address);
-        break;
-	case TAX:
-	    TAX_execute();
-	    break;
-	case TAY:
-	    TAY_execute();
-	    break;
-    case TCD:
-        TCD_execute();
-        break;
-    case TCS:
-        TCS_execute();
-        break;
-    case TDC:
-        TDC_execute();
-        break;
-    case TRB1: case TRB2:
-        TRB_execute(address, operand);
-        break;
-    case TSB1: case TSB2:
-        TSB_execute(address, operand);
-        break;
-    case TSC:
-        TSC_execute();
-        break;
-	case TSX:
-	    TSX_execute();
-	    break;
-	case TXA:
-	    TXA_execute();
-	    break;
-	case TXS:
-	    TXS_execute();
-	    break;
-    case TXY:
-        TXY_execute();
-        break;
-	case TYA:
+        case TAX:
+            TAX_execute();
+            break;
+        case TAY:
+            TAY_execute();
+            break;
+        case TCD:
+            TCD_execute();
+            break;
+        case TCS:
+            TCS_execute();
+            break;
+        case TDC:
+            TDC_execute();
+            break;
+        case TRB1: case TRB2:
+            TRB_execute(address, operand);
+            break;
+        case TSB1: case TSB2:
+            TSB_execute(address, operand);
+            break;
+        case TSC:
+            TSC_execute();
+            break;
+        case TSX:
+            TSX_execute();
+            break;
+        case TXA:
+            TXA_execute();
+            break;
+        case TXS:
+            TXS_execute();
+            break;
+        case TXY:
+            TXY_execute();
+            break;
+        case TYA:
 	    TYA_execute();
-	    break;
-    case TYX:
-        TYX_execute();
-        break;
-    case WAI:
-        WAI_execute();
-        break;
-    case WDM:
-        WDM_execute();
-        break;
-    case XBA:
-        XBA_execute();
-        break;
-    case XCE:
-        XCE_execute();
-        break;
-	default : 
-	    NOP_execute();
+	   break;
+        case TYX:
+            TYX_execute();
+            break;
+        case WAI:
+            WAI_execute();
+            break;
+        case WDM:
+            WDM_execute();
+            break;
+        case XBA:
+            XBA_execute();
+            break;
+        case XCE:
+            XCE_execute();
+            break;
+    	default : 
+    	    NOP_execute();
     }
-    //debug_dump(opcode);
+    if (regP.X) {
+	regY &= 0x00ff;
+	regX &= 0x00ff;
+    }
+    if (regP.M) {
+	regA &= 0x00ff;
+    }
+    debug_dump(opcode);
 }
 
 void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode) {
@@ -451,10 +458,10 @@ void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mo
             break;
         case BLOCK_MOVE:
             break;
-		default:
-	        //SOMETHING WENT REALLY WRONG
-	        clock->cycles += 1;
-	        cout << "Timing unrecognized" << endl;
+	default:
+	//SOMETHING WENT REALLY WRONG
+	clock->cycles += 1;
+	cout << "Timing unrecognized" << endl;
     }
 }
 
@@ -467,48 +474,48 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
     switch (column) {
 	case 0x00:
 	    if (opcode == JSR1)
-		    read_operand_absolute(addr_mode, address, operand);
-        else if (opcode == BRA)
-            read_operand_relative(addr_mode, address, operand);
-        else if (opcode == BRK)
-            read_operand_immediate(addr_mode, address, operand);
+		read_operand_absolute(addr_mode, address, operand);
+	    else if (opcode == BRA)
+                read_operand_relative(addr_mode, address, operand);
+            else if (opcode == BRK)
+		read_operand_immediate(addr_mode, address, operand);
 	    else if (opcode != RTI && opcode != RTS) {
-            if (regP.X)
-		        read_operand_immediate(addr_mode, address, operand);
-            else
-                read_operand_immediate_word(addr_mode, address, operand);
-        }
+		if (regP.X)
+		    read_operand_immediate(addr_mode, address, operand);
+		else
+		    read_operand_immediate_word(addr_mode, address, operand);
+	    }
 	    break;
 	case 0x01:
 	    read_operand_direct_indexed_indirect(addr_mode, address, operand);
 	    break;
 	case 0x02:
-        switch (opcode) {
-            case COP: case REP: case SEP:
-		        read_operand_immediate(addr_mode, address, operand);
-                break;
-            case LDX1:
-                if (regP.X) {
-                    read_operand_immediate(addr_mode, address, operand);
-                }
-                else {
-                    read_operand_immediate_word(addr_mode, address, operand);
-                }
-                break;
-            case PER: case BRL:
-                read_operand_relative_long(addr_mode, address, operand);
-                break;
-            default:
-                read_operand_immediate_long(addr_mode, address, operand);
-        }
+	    switch (opcode) {
+                case COP: case REP: case SEP:
+	    	        read_operand_immediate(addr_mode, address, operand);
+                    break;
+                case LDX1:
+                    if (regP.X) {
+                        read_operand_immediate(addr_mode, address, operand);
+                    }
+                    else {
+                        read_operand_immediate_word(addr_mode, address, operand);
+                    }
+                    break;
+                case PER: case BRL:
+                    read_operand_relative_long(addr_mode, address, operand);
+                    break;
+                default:
+                    read_operand_immediate_long(addr_mode, address, operand);
+            }
 	    break;
-    case 0x03:
-        read_operand_stack_relative(addr_mode, address, operand);
-        break;
+	case 0x03:
+	    read_operand_stack_relative(addr_mode, address, operand);
+            break;
 	case 0x04:
-        if (opcode == MVP)
-            read_operand_block_move(addr_mode, address, operand);
-        else
+	    if (opcode == MVP)
+                read_operand_block_move(addr_mode, address, operand);
+            else
 	        read_operand_direct(addr_mode, address, operand);
 	    break;
 	case 0x05:
@@ -517,21 +524,22 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
 	case 0x06:
 	    read_operand_direct(addr_mode, address, operand);
 	    break;
-    case 0x07:
-        read_operand_direct_indirect_long(addr_mode, address, operand);    
+	case 0x07:
+	    read_operand_direct_indirect_long(addr_mode, address, operand);    
+	    break;
 	case 0x09:
-        if (regP.M) {
-            read_operand_immediate(addr_mode, address, operand);
-        }
-        else {
-            read_operand_immediate_word(addr_mode, address, operand);
-        }
-        break;
+	    if (regP.M) {
+                read_operand_immediate(addr_mode, address, operand);
+            }
+            else {
+                read_operand_immediate_word(addr_mode, address, operand);
+            }
+            break;
 	case 0x0c:
 	    if (opcode == JMP3) 
-		    read_operand_absolute_indirect(addr_mode, address, operand);
+		read_operand_absolute_indirect(addr_mode, address, operand);
 	    else 
-            read_operand_absolute(addr_mode, address, operand);
+		read_operand_absolute(addr_mode, address, operand);
 	    break;
 	case 0x0d:
 	    read_operand_absolute(addr_mode, address, operand);
@@ -539,47 +547,47 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
 	case 0x0e:
 	    read_operand_absolute(addr_mode, address, operand);
 	    break;
-    case 0x0f:
+	case 0x0f:
 	    read_operand_absolute_long(addr_mode, address, operand);
-        break;
+	    break;
 	case 0x10:
-        read_operand_relative(addr_mode, address, operand);
+	    read_operand_relative(addr_mode, address, operand);
 	    break;
 	case 0x11:
 	    read_operand_direct_indirect_indexed(addr_mode, address, operand);
 	    break;
-    case 0x12:
-        read_operand_direct_indirect(addr_mode, address, operand);
-        break;
-    case 0x13:
-        read_operand_stack_relative_indirect_indexed(addr_mode, address, operand);
-        break;
+	case 0x12:
+    	    read_operand_direct_indirect(addr_mode, address, operand);
+    	    break;
+    	case 0x13:
+    	    read_operand_stack_relative_indirect_indexed(addr_mode, address, operand);
+    	    break;
 	case 0x14:
-        if (opcode == TRB1)
-            read_operand_direct(addr_mode, address, operand);
-        else if (opcode == MVN)
-            read_operand_block_move(addr_mode, address, operand);
-        else if (opcode == PEI)
-            read_operand_direct_indirect(addr_mode, address, operand);
-        else if (opcode == PEA)
-            read_operand_absolute(addr_mode, address, operand);
-        else
-            read_operand_direct_indexed_x(addr_mode, address, operand);
-        break;
+	    if (opcode == TRB1)
+                read_operand_direct(addr_mode, address, operand);
+            else if (opcode == MVN)
+                read_operand_block_move(addr_mode, address, operand);
+            else if (opcode == PEI)
+                read_operand_direct_indirect(addr_mode, address, operand);
+            else if (opcode == PEA)
+                read_operand_absolute(addr_mode, address, operand);
+            else
+                read_operand_direct_indexed_x(addr_mode, address, operand);
+            break;
 	case 0x15:
-        read_operand_direct_indexed_x(addr_mode, address, operand);
+	    read_operand_direct_indexed_x(addr_mode, address, operand);
 	    break;
 	case 0x16:
-        if (opcode == STX3 || opcode == LDX4) {
-            read_operand_direct_indexed_y(addr_mode, address, operand);
-        }
-        else {
-            read_operand_direct_indexed_x(addr_mode, address, operand);	    
-        }
+	    if (opcode == STX3 || opcode == LDX4) {
+	        read_operand_direct_indexed_y(addr_mode, address, operand);
+            }
+            else {
+                read_operand_direct_indexed_x(addr_mode, address, operand);	    
+            }
 	    break;
-    case 0x17:
-        read_operand_direct_indirect_long_indexed(addr_mode, address, operand);
-        break;
+	case 0x17:
+    	    read_operand_direct_indirect_long_indexed(addr_mode, address, operand);
+    	    break;
 	case 0x19:
 	    read_operand_absolute_indexed_y(addr_mode, address, operand);
 	    break;
@@ -601,23 +609,24 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
             	    read_operand_absolute_indirect_long(addr_mode, address, operand);
             	    break;
             	case JSR2:
-            	    read_operand_absolute_indexed_indirect(addr_mode, address, operand);
+		    read_operand_absolute_indexed_indirect(addr_mode, address, operand);
             	    break;
             	default:
             	    read_operand_absolute_indexed_x(addr_mode, address, operand);
 	    }
 	    break;
 	case 0x1d:
-        read_operand_absolute_indexed_x(addr_mode, address, operand);
+	    read_operand_absolute_indexed_x(addr_mode, address, operand);
 	    break;
 	case 0x1e:
 	    if (opcode == LDX5) 
-            read_operand_absolute_indexed_y(addr_mode, address, operand);
+		read_operand_absolute_indexed_y(addr_mode, address, operand);
 	    else 
-            read_operand_absolute_indexed_x(addr_mode, address, operand);
+		read_operand_absolute_indexed_x(addr_mode, address, operand);
 	    break;
-    case 0x1f:
-        read_operand_absolute_long_indexed(addr_mode, address, operand);
+	case 0x1f:
+	    read_operand_absolute_long_indexed(addr_mode, address, operand);
+	    break;
 	default:
 	    regPC = regPC + 1; //No operand
     }
@@ -892,7 +901,7 @@ void Cpu::read_operand_absolute_long_indexed(addr_mode_t *addr_mode, uint32_t *a
     *address = mem.read_long((regPB << 16) | (regPC + 1)) + regX;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED_LONG;
-    regPC += 3;
+    regPC += 4;
 }
 
 void Cpu::read_operand_block_move(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
@@ -937,8 +946,8 @@ void Cpu::read_operand_direct_indirect_long_indexed(addr_mode_t *addr_mode, uint
     // operand = ram[address_long]
 
     uint32_t ptr = (mem.read_byte((regPB << 16) | (regPC+1)) + regDP) & 0x00ffff;
-
     *address = mem.read_long(ptr) + regY;
+
     *operand = mem.read_word(*address);
     *addr_mode = DIRECT_INDIRECT_LONG_INDEXED;
     regPC += 2;
@@ -1023,13 +1032,21 @@ void Cpu::ASL_mem_execute(uint32_t address, uint16_t operand) {
 
     uint16_t result = operand << 1;
 
-    mem.write_word(address, result);
+    if (regP.M) {
+	mem.write_byte(address, result);
 
-    regP.Z = result == 0;
-    regP.C = (operand >> 15) & 1;
-    regP.N = (result >> 15) & 1;
-    if (!regP.M)
+	regP.Z = (uint8_t) result == 0;
+	regP.C = (operand >> 7) & 1;
+	regP.N = (result >> 7) & 1;
+    }
+    else {
+	mem.write_word(address, result);
+
+	regP.Z = result == 0;
+	regP.C = (operand >> 15) & 1;
+	regP.N = (result >> 15) & 1;
         clock->cycles += 2;
+    }
 }
 
 void Cpu::ASL_A_execute() {
@@ -1328,12 +1345,18 @@ void Cpu::DEC_mem_execute(uint32_t address, uint16_t operand) {
 
     uint16_t result = operand-1;
 
-    mem.write_word(address, result);
+    if (regP.M) {
+	mem.write_byte(address, result);
 
-    regP.Z = result == 0;
-    regP.N = (result >> 15) & 1;
-    if (!regP.M)
+	regP.Z = (uint8_t) result == 0;
+	regP.N = (result >> 7) & 1;
+    }
+    else {
+	mem.write_word(address, result);
+	regP.Z = result == 0;
+	regP.N = (result >> 15) & 1;
         clock->cycles += 2;
+    }
 }
 
 void Cpu::DEC_A_execute() {
@@ -2131,13 +2154,13 @@ void Cpu::STA_execute(uint32_t address) {
     // Store accumulator
     // M=A
 
-    if (regP.M)
-	    mem.write_byte(address, (uint8_t) regA);
+    if (regP.M) {
+	mem.write_byte(address, (uint8_t) regA);
+    }
     else {
-	    mem.write_word(address, regA);
+	mem.write_word(address, regA);
         clock->cycles += 1;
     }
-
 }
 
 void Cpu::STP_execute() {
@@ -2460,7 +2483,39 @@ void Cpu::NMI_execute() {
     regP.I = 1;
     //We set the PC to the interrupt vector
     regPC = mem.read_word(NMI_INT_VECTOR_ADDR);
-    cout << "NMI" << endl;
+}
+
+void Cpu::IRQ_execute() {
+    // IRQ
+
+    uint8_t lowPC, highPC;
+    lowPC = regPC;
+    highPC = (regPC >> 8);
+    
+    uint8_t procStat;
+    procStat =  (regP.N) << 7 |
+		(regP.V) << 6 |
+		(regP.M) << 5 |
+		(regP.X) << 4 |
+		(regP.D) << 3 |
+		(regP.I) << 2 |
+		(regP.Z) << 1 |
+		(regP.C);
+    
+    //We push the PC and Processor Status into the stack
+    if (!regP.E) {
+        pushStack(regPB);
+        clock->cycles += 1;
+    }
+    pushStack(highPC);
+    pushStack(lowPC);
+    pushStack(procStat);
+
+    regPB = 0;
+    regP.D = 0;
+    regP.I = 1;
+    //We set the PC to the interrupt vector
+    regPC = mem.read_word(IRQ_INT_VECTOR_ADDR);
 }
 
 void Cpu::pushStack(uint8_t data) {
@@ -2476,23 +2531,29 @@ uint8_t Cpu::pullStack() {
 
 void Cpu::debug_dump(uint8_t inst) {
     cout << "INSTRUCTION" << std::hex << (unsigned) inst << endl;
+    /*
     cout << "regA =  " << std::hex << (unsigned) regA << endl;
     cout << "regX =  " << std::hex << (unsigned) regX << endl;
     cout << "regY =  " << std::hex << (unsigned) regY << endl;
+    */
     cout << "regPC = " << std::hex << (unsigned) regPC << endl;
+    /*
     cout << "regSP = " << std::hex << (unsigned) regSP << endl;
     cout << "regDP = " << std::hex << (unsigned) regDP << endl;
     cout << "regDB = " << std::hex << (unsigned) regDB << endl;
+    */
     cout << "regPB = " << std::hex << (unsigned) regPB << endl;
+    /*
     cout << "regP =" << endl;
-    cout << "    N = " << (unsigned) regP.C;
-    cout << "    V = " << (unsigned) regP.Z;
+    cout << "    C = " << (unsigned) regP.C;
+    cout << "    Z = " << (unsigned) regP.Z;
     cout << "    M = " << (unsigned) regP.M;
-    cout << "    X = " << (unsigned) regP.I;
+    cout << "    I = " << (unsigned) regP.I;
     cout << "    D = " << (unsigned) regP.D;
-    cout << "    I = " << (unsigned) regP.X;
-    cout << "    Z = " << (unsigned) regP.V;
-    cout << "    C = " << (unsigned) regP.N;
+    cout << "    X = " << (unsigned) regP.X;
+    cout << "    V = " << (unsigned) regP.V;
+    cout << "    N = " << (unsigned) regP.N;
     cout << "    E = " << (unsigned) regP.E << endl;
     cout << "cycles = " << clock->cycles << endl;
+    */
 }

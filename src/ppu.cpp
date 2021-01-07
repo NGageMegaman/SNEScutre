@@ -12,7 +12,7 @@ using namespace std;
 Ppu::Ppu() {
     di = XOpenDisplay(getenv("DISPLAY"));
     //Create window
-    int x = 0, y = 0, width = 256, height = 240, border_width = 1;
+    int x = 0, y = 0, width = 512, height = 512, border_width = 1;
     sc = DefaultScreen(di);
     ro = DefaultRootWindow(di);
     wi = XCreateSimpleWindow(di, ro, x, y, width, height, border_width, BlackPixel(di, sc), WhitePixel(di, sc));
@@ -23,7 +23,7 @@ Ppu::Ppu() {
     XStoreName(di, wi, "SNEScutre");
 
     oam = (uint8_t *) malloc(sizeof(uint8_t) * OAM_SIZE);
-    vram = (uint8_t *) malloc(sizeof(uint8_t) * VRAM_SIZE);
+    vram = (uint16_t *) malloc(sizeof(uint16_t) * VRAM_SIZE);
     cg = (uint16_t *) malloc(sizeof(uint16_t) * CG_SIZE);
     BG1_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
     BG2_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
@@ -33,7 +33,7 @@ Ppu::Ppu() {
     initBppMatrix();
 }
 
-void Ppu::drawBG(uint8_t BG, uint8_t mode) {
+void Ppu::drawBG(uint8_t BG) {
     uint32_t *bg_frame_buffer;
     if (BG == 1) bg_frame_buffer = BG1_frame_buffer;
     else if (BG == 2) bg_frame_buffer = BG2_frame_buffer;
@@ -66,53 +66,58 @@ void Ppu::drawBG(uint8_t BG, uint8_t mode) {
 	tilemap_y_mirror = BG4_tilemap_y_mirror;
 	char_address     = BG4_char_address;
     }
-    uint32_t tilemap_size = 0x800;
+    uint32_t tilemap_size = 0x400;
     if (tilemap_x_mirror && !tilemap_y_mirror)
-	tilemap_size += 0x800;
+	tilemap_size += 0x400;
     if (tilemap_y_mirror && !tilemap_x_mirror)
-	tilemap_size += 0x800;
+	tilemap_size += 0x400;
     if (tilemap_x_mirror && tilemap_y_mirror)
-	tilemap_size += 3*0x800;
+	tilemap_size += 3*0x400;
     
     //Determine Mode specific parameters
-    uint8_t bpp = bpp_matrix[4*mode + (BG-1)];
+    uint8_t bpp = bpp_matrix[4*BG_mode + (BG-1)];
     
     //Tile loop
-    for (uint32_t i = 0; i < tilemap_size; i+=2) {
-	uint8_t high, low;
+    for (uint32_t i = 0; i < tilemap_size; i++) {
+	uint16_t tile;
 	uint16_t tile_number;
 	uint8_t palette;
 	bool v_flip, h_flip, priority;
-	low = vram[tilemap_address + (i*2)];
-	high = vram[tilemap_address + (i*2) + 1];
+	tile = vram[tilemap_address + i];
 
-	tile_number = ((high & 0x03) << 8) | low;
-	palette = (high >> 2) & 0x07;
-	priority = (high >> 5) & 1;
-	h_flip = (high >> 6) & 1;
-	v_flip = (high >> 7) & 1;
+	//REINSTAURATE THIS
+	tile_number = tile & 0x3f;
+	//tile_number = (tile + i) & 0x3ff;
+	palette = (tile >> 10) & 0x07;
+	priority = (tile >> 13) & 1;
+	h_flip = (tile >> 14) & 1;
+	v_flip = (tile >> 15) & 1;
+	//cout << "tilemap address " << (unsigned) tilemap_address << endl;
+	//cout << "tile number " << (unsigned) tile_number << endl;
 
 	//Determine tile position on the screen
 	//TODO: consider 16x16 tiles, which is to say divide by 32*2*2
-	uint8_t tile_x, tile_y;
-	tile_x = (((i % 0x800) % (32*2))/2);
-	tile_y = (((i % 0x800) / (32*2)));
+	uint32_t tile_x, tile_y;
+	tile_x = (i % 0x400) % (32);
+	tile_y = (i % 0x400) / (32);
 
-	uint32_t character_address = (char_address << 13) + (tile_number * 8*bpp);
-	uint32_t palette_address = determinePaletteAddress(BG, mode);
+	uint32_t character_address = char_address + (tile_number * 4*bpp);
+	uint32_t palette_address = determinePaletteAddress(BG, BG_mode);
 
 	//TODO:If direct color
 	//Separate in a function?
-	for (int i2; i2 < 8; ++i2) {
-	    for (int j2; j2 < 8; ++j2) {
+	for (uint8_t i2 = 0; i2 < 8; ++i2) {
+	    for (uint8_t j2 = 0; j2 < 8; ++j2) {
 		uint8_t cg_index = 0;
 		for (uint8_t plane = 0; plane < bpp; plane += 2) {
-		    uint8_t lowplane = vram[character_address + (8*plane) + (i2*2)];
-		    uint8_t highplane = vram[character_address + (8*plane) + (i2*2) + 1];
+		    uint16_t hilo_plane = vram[character_address + (4*plane) + i2];
+		    uint8_t lowplane = hilo_plane & 0x00ff;
+		    uint8_t highplane = (hilo_plane >> 8) & 0x00ff;
 		    lowplane  = (lowplane >> (7-j2)) & 1;
 		    highplane = ((highplane >> (7-j2)) << 1) & 1;
-		    cg_index = (highplane | lowplane) << plane;
+		    cg_index |= (highplane | lowplane) << plane;
 		}
+
 		//To find the corresponding color, we sum:
 		//  - where the palette starts for this BG
 		//  - The palette index * 8 colors for each bpp
@@ -120,12 +125,12 @@ void Ppu::drawBG(uint8_t BG, uint8_t mode) {
 		uint32_t color = cg[palette_address + (palette * (8*bpp)) + cg_index];
 		color = convert_BGR_RGB(color);
 		
-		uint8_t pos_x = tile_x * 8, pos_y = tile_y * 8;
-		if (i >= 0x800 && i < 2*0x800) {
+		uint32_t pos_x = tile_x*8, pos_y=tile_y*8;
+		if (i >= 0x400 && i < 2*0x400) {
 		    if (tilemap_x_mirror) pos_x += 256;
 		    else if (tilemap_y_mirror) pos_y += 256;
 		}
-		else if (i >= 2*0x800 && i < 3*0x800) {
+		else if (i >= 2*0x400 && i < 3*0x400) {
 		    pos_y += 256;
 		}
 		else {
@@ -156,12 +161,43 @@ uint32_t Ppu::convert_BGR_RGB(uint32_t bgr) {
 }
 
 void Ppu::drawScreen() {
-    for (uint32_t i = 0; i<256; ++i) {
-	for (uint32_t j = 0; j<256; ++j) {
-	    XSetForeground(di, gc, BG1_frame_buffer[j + (i*1024)]);
+    for (uint32_t i = 0; i<1024; ++i) {
+	for (uint32_t j = 0; j<1024; ++j) {
+	    XSetForeground(di, gc, BG3_frame_buffer[j + (i*1024)]);
 	    XDrawPoint(di, wi, gc, j, i);
 	}
     }
+    
+  /* 
+    cout << "---- VRAM ----" << endl;
+    cout << "BG1 TILEMAP DIR = " << std::hex << (unsigned) BG1_tilemap_address << endl; 
+    cout << "BG2 TILEMAP DIR = " << std::hex << (unsigned) BG2_tilemap_address << endl; 
+    cout << "BG3 TILEMAP DIR = " << std::hex << (unsigned) BG3_tilemap_address << endl; 
+    cout << "BG4 TILEMAP DIR = " << std::hex << (unsigned) BG4_tilemap_address << endl; 
+    cout << "---- VRAM ----" << endl;
+    cout << "BG1 CHAR DIR = " << std::hex << (unsigned) BG1_char_address << endl; 
+    cout << "BG2 CHAR DIR = " << std::hex << (unsigned) BG2_char_address << endl; 
+    cout << "BG3 CHAR DIR = " << std::hex << (unsigned) BG3_char_address << endl; 
+    cout << "BG4 CHAR DIR = " << std::hex << (unsigned) BG4_char_address << endl; 
+     
+    for (uint32_t i = 0; i<VRAM_SIZE; i += 16) {
+	cout << std::hex << (unsigned) i << " ";
+	for (int j = 0; j<16; ++j) {
+	    cout << std::hex << (unsigned) vram[i+j] << " ";
+	}
+	cout << endl;
+    }
+    
+    for (uint32_t i = 0; i<CG_SIZE; i += 16) {
+	cout << std::hex << (unsigned) i << " ";
+	for (int j = 0; j<16; ++j) {
+	    cout << std::hex << (unsigned) cg[i+j] << " ";
+	}
+	cout << endl;
+    }
+    */
+    
+   
 }
 
 void Ppu::vblank() {
@@ -179,7 +215,7 @@ void Ppu::write_INIDISP(uint8_t data) {
 
 void Ppu::write_OBSEL(uint8_t data) {
     //sssnnbbb
-    name_base_select = data & 0x07;
+    name_base_select = (data & 0x07) << 14; //14? is it 17 bits?
     name_select = (data >> 3) & 0x03;
     object_size = (data >> 5) & 0x07;
 }
@@ -240,40 +276,40 @@ void Ppu::write_BG1SC(uint8_t data) {
     //aaaaaayx
     BG1_tilemap_x_mirror = data & 0x01;
     BG1_tilemap_y_mirror = (data >> 1) & 0x01;
-    BG1_tilemap_address = (data >> 2) & 0x3f;
+    BG1_tilemap_address = ((data >> 2) & 0x3f) << 10;
 }
 
 void Ppu::write_BG2SC(uint8_t data) {
     //aaaaaayx
     BG2_tilemap_x_mirror = data & 0x01;
     BG2_tilemap_y_mirror = (data >> 1) & 0x01;
-    BG2_tilemap_address = (data >> 2) & 0x3f;
+    BG2_tilemap_address = ((data >> 2) & 0x3f) << 10;
 }
 
 void Ppu::write_BG3SC(uint8_t data) {
     //aaaaaayx
     BG3_tilemap_x_mirror = data & 0x01;
     BG3_tilemap_y_mirror = (data >> 1) & 0x01;
-    BG3_tilemap_address = (data >> 2) & 0x3f;
+    BG3_tilemap_address = ((data >> 2) & 0x3f) << 10;
 }
 
 void Ppu::write_BG4SC(uint8_t data) {
     //aaaaaayx
     BG4_tilemap_x_mirror = data & 0x01;
     BG4_tilemap_y_mirror = (data >> 1) & 0x01;
-    BG4_tilemap_address = (data >> 2) & 0x3f;
+    BG4_tilemap_address = ((data >> 2) & 0x3f) << 10;
 }
 
 void Ppu::write_BG12NBA(uint8_t data) {
     //bbbbaaaa
-    BG1_char_address = data & 0x0f;
-    BG2_char_address = (data >> 4) & 0x0f;
+    BG1_char_address = (data & 0x0f) << 12;
+    BG2_char_address = ((data >> 4) & 0x0f) << 12;
 }
 
 void Ppu::write_BG34NBA(uint8_t data) {
     //bbbbaaaa
-    BG3_char_address = data & 0x0f;
-    BG4_char_address = (data >> 4) & 0x0f;
+    BG3_char_address = (data & 0x0f) << 12;
+    BG4_char_address = ((data >> 4) & 0x0f) << 12;
 }
 
 void Ppu::write_BG1HOFS(uint8_t data) {
@@ -448,26 +484,27 @@ void Ppu::write_VMDATAL(uint8_t data) {
     } else if (address_remapping == 1) {
         //aaaaaaaaBBBccccc => aaaaaaaacccccBBB
         vram_address_remap = 
-            (vram_address & 0xff00) | ((vram_address & 0x001f)<<3) | ((vram_address & 0x00e0)>>5);
+    	(vram_address & 0xff00) | ((vram_address & 0x001f)<<3) | ((vram_address & 0x00e0)>>5);
     } else if (address_remapping == 2) {
         //aaaaaaaBBBcccccc => aaaaaaaccccccBBB
         vram_address_remap = 
-            (vram_address & 0xfe00) | ((vram_address & 0x003f)<<3) | ((vram_address & 0x01c0)>>6);
+    	(vram_address & 0xfe00) | ((vram_address & 0x003f)<<3) | ((vram_address & 0x01c0)>>6);
     } else {
         //aaaaaaBBBccccccc => aaaaaacccccccBBB
         vram_address_remap = 
-            (vram_address & 0xfc00) | ((vram_address & 0x007f)<<3) | ((vram_address & 0x0380)>>7);
+    	(vram_address & 0xfc00) | ((vram_address & 0x007f)<<3) | ((vram_address & 0x0380)>>7);
     }
     
     vram[vram_address_remap] = (vram[vram_address_remap] & 0xff00) | data;
+    //cout << "MDATA L " << std::hex << (unsigned) vram_address_remap << " " << vram[vram_address_remap] << endl;
     if (address_increment_mode == 0) {
         vram_read_buffer = vram[vram_address_remap];
         if (address_increment_amount == 0) {
-            vram_address++;
+    	vram_address++;
         } else if (address_increment_amount == 1) {
-            vram_address += 32;
+    	vram_address += 32;
         } else {
-            vram_address += 128;
+    	vram_address += 128;
         }
     }
 }
@@ -481,26 +518,27 @@ void Ppu::write_VMDATAH(uint8_t data) {
     } else if (address_remapping == 1) {
         //aaaaaaaaBBBccccc => aaaaaaaacccccBBB
         vram_address_remap = 
-            (vram_address & 0xff00) | ((vram_address & 0x001f)<<3) | ((vram_address & 0x00e0)>>5);
+    	(vram_address & 0xff00) | ((vram_address & 0x001f)<<3) | ((vram_address & 0x00e0)>>5);
     } else if (address_remapping == 2) {
         //aaaaaaaBBBcccccc => aaaaaaaccccccBBB
         vram_address_remap = 
-            (vram_address & 0xfe00) | ((vram_address & 0x003f)<<3) | ((vram_address & 0x01c0)>>6);
+    	(vram_address & 0xfe00) | ((vram_address & 0x003f)<<3) | ((vram_address & 0x01c0)>>6);
     } else {
         //aaaaaaBBBccccccc => aaaaaacccccccBBB
         vram_address_remap = 
-            (vram_address & 0xfc00) | ((vram_address & 0x007f)<<3) | ((vram_address & 0x0380)>>7);
+    	(vram_address & 0xfc00) | ((vram_address & 0x007f)<<3) | ((vram_address & 0x0380)>>7);
     }
     
     vram[vram_address_remap] = (vram[vram_address_remap]&0x00ff) | (data<<8);
+    //cout << "MDATA H " << std::hex << (unsigned) vram_address_remap << " " << vram[vram_address_remap] << endl;
     if (address_increment_mode == 1) {
         vram_read_buffer = vram[vram_address_remap];
         if (address_increment_amount == 0) {
-            vram_address++;
+    	vram_address++;
         } else if (address_increment_amount == 1) {
-            vram_address += 32;
+    	vram_address += 32;
         } else {
-            vram_address += 128;
+    	vram_address += 128;
         }
     }
 }
@@ -513,11 +551,13 @@ void Ppu::write_CGADD(uint8_t data) {
 
 void Ppu::write_CGDATA(uint8_t data) {
     //-bbbbbgg gggrrrrr
-    if (cg_low_buffer == 1) {
+    if (cg_h_write == 1) {
         cg[cg_address] = (data<<8) | cg_low_buffer;
         cg_address++;
+	cg_h_write = 0;
     } else {
         cg_low_buffer = data;
+	cg_h_write = 1;
     }
 }
 

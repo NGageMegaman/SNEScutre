@@ -9,7 +9,7 @@ using namespace std;
 class Ppu {
     public:
 	Ppu();
-	void drawBG(uint8_t BG, uint8_t mode);
+	void drawBG(uint8_t BG);
 	void drawScreen();
 	void vblank();
 	uint32_t determinePaletteAddress(uint8_t BG, uint8_t mode);
@@ -63,7 +63,7 @@ class Ppu {
 	GC gc;
 
     uint8_t *oam;
-    uint8_t *vram;
+    uint16_t *vram;
     uint16_t *cg;
 
     bool Fblank, Hblank, Vblank;
@@ -81,10 +81,10 @@ class Ppu {
     bool mode1_BG3_priority;
     bool BG1_mosaic, BG2_mosaic, BG3_mosaic, BG4_mosaic;
     uint8_t mosaic_pixel_size;
-    uint8_t BG1_tilemap_address, BG2_tilemap_address, BG3_tilemap_address, BG4_tilemap_address;
+    uint16_t BG1_tilemap_address, BG2_tilemap_address, BG3_tilemap_address, BG4_tilemap_address;
     bool BG1_tilemap_x_mirror, BG2_tilemap_x_mirror, BG3_tilemap_x_mirror, BG4_tilemap_x_mirror;
     bool BG1_tilemap_y_mirror, BG2_tilemap_y_mirror, BG3_tilemap_y_mirror, BG4_tilemap_y_mirror;
-    uint8_t BG1_char_address, BG2_char_address, BG3_char_address, BG4_char_address;
+    uint16_t BG1_char_address, BG2_char_address, BG3_char_address, BG4_char_address;
     uint16_t BG1_hscroll, BG1_vscroll;
     uint16_t BG2_hscroll, BG2_vscroll;
     uint16_t BG3_hscroll, BG3_vscroll;
@@ -108,7 +108,7 @@ class Ppu {
     uint8_t CGADD;
     uint8_t cg_address;
     uint8_t cg_low_buffer;
-    bool cg_h_addr;
+    bool cg_h_write;
     //WINDOWS UNIMPLEMENTED, W* REGISTERS UNIMPLEMENTED
     uint8_t BG1_main_en, BG2_main_en, BG3_main_en, BG4_main_en, OBJ_main_en;
     uint8_t BG1_subs_en, BG2_subs_en, BG3_subs_en, BG4_subs_en, OBJ_subs_en;

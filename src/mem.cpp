@@ -50,7 +50,6 @@ uint16_t Mem::read_word(uint32_t address) {
         byte0 = ram[address];
     if (!access_memory_mapped(address+1, 0, &byte1, false))
         byte1 = ram[address+1];
-    if (address == 0x00ffea) cout << std::hex << ((byte1 << 8) | byte0) << endl;
     return ((byte1 << 8) | byte0);
 }
 
@@ -68,7 +67,8 @@ uint32_t Mem::read_long(uint32_t address) {
 
 void Mem::write_byte(uint32_t address, uint8_t data) {
     address = mirror(address);
-    if (address == 0x00fffea) cout << "HERE" << endl;
+    if (address == 0x7e0100) cout << "HERE " << (unsigned) data << endl;
+    //cout << "write " << address << " " << (unsigned) data << endl;
     if (!access_memory_mapped(address, data, NULL, true)) { 
         if (address == 0x2140) {
             if (!spc_transfer) {
@@ -99,8 +99,9 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 
 void Mem::write_word(uint32_t address, uint16_t data) {
     address = mirror(address);
-    if (address == 0x00fffea) cout << "HERE" << endl;
-    if (address == 0x00fffe9) cout << "HERE" << endl;
+    if (address == 0x7e0100) cout << "HERE " << (unsigned) data << endl;
+    if (address == 0x7e00ff) cout << "HERE " << (unsigned) data << endl;
+    //cout << "write " << address << " " << (unsigned) data << endl;
     if (!access_memory_mapped(address, (data & 0x00ff), NULL, true)) 
         ram[address] = data & 0x00ff;
     if (!access_memory_mapped(address+1, ((data >> 8) & 0x00ff), NULL, true)) 
@@ -109,9 +110,10 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 
 void Mem::write_long(uint32_t address, uint32_t data) {
     address = mirror(address);
-    if (address == 0x00fffea) cout << "HERE" << endl;
-    if (address == 0x00fffe9) cout << "HERE" << endl;
-    if (address == 0x00fffe8) cout << "HERE" << endl;
+    if (address == 0x7e100) cout << "HERE " << (unsigned) data << endl;
+    if (address == 0x7e0f9) cout << "HERE " << (unsigned) data << endl;
+    if (address == 0x7e0f8) cout << "HERE " << (unsigned) data << endl;
+    //cout << "write " << address << " " << (unsigned) data << endl;
     if (!access_memory_mapped(address, (data & 0x0000ff), NULL, true)) 
         ram[address] = data & 0x0000ff;
     if (!access_memory_mapped(address+1,((data>>8) & 0x0000ff), NULL, true)) 
@@ -359,7 +361,6 @@ void Mem::write_WMDATA(uint8_t data) {
 		       (wmaddm << 8) |
 		       wmaddl;
     ram[address] = data;
-    cout << "WRAM " << address << " " << (unsigned) data << endl;
     address++;
     wmaddl = address & 0x0000ff;
     wmaddm = (address >> 8) & 0x0000ff;
@@ -446,31 +447,30 @@ void Mem::write_DASBx(uint8_t data, uint8_t channel) {
 void Mem::DMA_enable(uint8_t channel) {
     uint16_t size=(dma_size_h[channel] << 8) | dma_size_l[channel];
     uint8_t mode = transfer_mode[channel];
+    bool dir = dma_direction[channel];
     uint32_t A, B;
     A = (bus_a_address_b[channel] << 16) | 
         (bus_a_address_h[channel] << 8) |
         (bus_a_address_l[channel]);
     B = 0x2100 | bus_b_address[channel];
 
-    cout << "DMA START " << A << " " << B << " " << size << (unsigned) channel << endl;
-
     for (int i = 0; i < size; ++i) {
 	if (mode == 0) {
-	    DMA_transfer_byte(A, B, dma_direction);
+	    DMA_transfer_byte(A, B, dir);
 	} else if (mode == 1) {
-	    DMA_transfer_byte(A, B + (i % 2), dma_direction);
+	    DMA_transfer_byte(A, B + (i % 2), dir);
 	} else if (mode == 2) {
-	    DMA_transfer_byte(A, B, dma_direction);
+	    DMA_transfer_byte(A, B, dir);
 	} else if (mode == 3) {
-	    DMA_transfer_byte(A, B + ((i%4)/2), dma_direction);
+	    DMA_transfer_byte(A, B + ((i%4)/2), dir);
 	} else if (mode == 4) {
-	    DMA_transfer_byte(A, B + (i % 4), dma_direction);
+	    DMA_transfer_byte(A, B + (i % 4), dir);
 	} else if (mode == 5) {
-	    DMA_transfer_byte(A, B + (i % 2), dma_direction);
+	    DMA_transfer_byte(A, B + (i % 2), dir);
 	} else if (mode == 6) {
-	    DMA_transfer_byte(A, B, dma_direction);
+	    DMA_transfer_byte(A, B, dir);
 	} else if (mode == 7) {
-	    DMA_transfer_byte(A, B + ((i%4)/2), dma_direction);
+	    DMA_transfer_byte(A, B + ((i%4)/2), dir);
 	}
 	if (!dma_fixed_transfer[channel]) {
 	    if (!dma_addr_increment[channel]) A++;
