@@ -28,6 +28,7 @@ class Cpu {
 	    void add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode);
 	    void read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand, uint8_t opcode);
         void read_operand_immediate(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand);
+        void read_operand_immediate_word(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand);
         void read_operand_immediate_long(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand);
         void read_operand_relative(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand);
         void read_operand_relative_long(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand);

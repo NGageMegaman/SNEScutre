@@ -17,7 +17,7 @@ Ppu::Ppu() {
     ro = DefaultRootWindow(di);
     wi = XCreateSimpleWindow(di, ro, x, y, width, height, border_width, BlackPixel(di, sc), WhitePixel(di, sc));
     XSelectInput(di, wi, KeyPressMask | KeyReleaseMask | ExposureMask);
-    XAutoRepeatOff(di);
+    XAutoRepeatOn(di);
     gc = XCreateGC(di, ro, 0, NULL);
     XMapWindow(di, wi); //Make window visible
     XStoreName(di, wi, "SNEScutre");
@@ -25,256 +25,146 @@ Ppu::Ppu() {
     oam = (uint8_t *) malloc(sizeof(uint8_t) * OAM_SIZE);
     vram = (uint8_t *) malloc(sizeof(uint8_t) * VRAM_SIZE);
     cg = (uint16_t *) malloc(sizeof(uint16_t) * CG_SIZE);
+    BG1_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
+    BG2_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
+    BG3_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
+    BG4_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
+    bpp_matrix = (uint16_t *) malloc(sizeof(uint16_t) * 4 * 8);
+    initBppMatrix();
 }
 
-void Ppu::drawSprites(int n_scanline) {
-    /*
-    //Select what events the window will listen to
-    uint8_t index, attribute, palette;
-    int pos_x, pos_y;
-    unsigned int patterntable, line_addr, h_offset, large_sprite;
-    bool flip_h, flip_v, priority;
+void Ppu::drawBG(uint8_t BG, uint8_t mode) {
+    uint32_t *bg_frame_buffer;
+    if (BG == 1) bg_frame_buffer = BG1_frame_buffer;
+    else if (BG == 2) bg_frame_buffer = BG2_frame_buffer;
+    else if (BG == 3) bg_frame_buffer = BG3_frame_buffer;
+    else if (BG == 4) bg_frame_buffer = BG4_frame_buffer;
+    //Determine tilemap addresses
+    uint32_t tilemap_address, char_address;
+    bool tilemap_x_mirror, tilemap_y_mirror;
+    if (BG == 1) {
+	tilemap_address  = BG1_tilemap_address;
+	tilemap_x_mirror = BG1_tilemap_x_mirror;
+	tilemap_y_mirror = BG1_tilemap_y_mirror;
+	char_address     = BG1_char_address;
+    }
+    else if (BG == 2) {
+	tilemap_address  = BG2_tilemap_address;
+	tilemap_x_mirror = BG2_tilemap_x_mirror;
+	tilemap_y_mirror = BG2_tilemap_y_mirror;
+	char_address     = BG2_char_address;
+    }
+    else if (BG == 3) {
+	tilemap_address  = BG3_tilemap_address;
+	tilemap_x_mirror = BG3_tilemap_x_mirror;
+	tilemap_y_mirror = BG3_tilemap_y_mirror;
+	char_address     = BG3_char_address;
+    }
+    else if (BG == 4) {
+	tilemap_address  = BG4_tilemap_address;
+	tilemap_x_mirror = BG4_tilemap_x_mirror;
+	tilemap_y_mirror = BG4_tilemap_y_mirror;
+	char_address     = BG4_char_address;
+    }
+    uint32_t tilemap_size = 0x800;
+    if (tilemap_x_mirror && !tilemap_y_mirror)
+	tilemap_size += 0x800;
+    if (tilemap_y_mirror && !tilemap_x_mirror)
+	tilemap_size += 0x800;
+    if (tilemap_x_mirror && tilemap_y_mirror)
+	tilemap_size += 3*0x800;
+    
+    //Determine Mode specific parameters
+    uint8_t bpp = bpp_matrix[4*mode + (BG-1)];
+    
+    //Tile loop
+    for (uint32_t i = 0; i < tilemap_size; i+=2) {
+	uint8_t high, low;
+	uint16_t tile_number;
+	uint8_t palette;
+	bool v_flip, h_flip, priority;
+	low = vram[tilemap_address + (i*2)];
+	high = vram[tilemap_address + (i*2) + 1];
 
-    //Show sprites ppumask bit
-    if ((mem_ppu->PPUMASK >> 4)&1) {
-	for (int i = 0; i<64; ++i) {
-	    pos_y     = mem_ppu->oam[(i*4) + 0];
-	    index     = mem_ppu->oam[(i*4) + 1];
-	    attribute = mem_ppu->oam[(i*4) + 2];
-	    pos_x     = mem_ppu->oam[(i*4) + 3];
+	tile_number = ((high & 0x03) << 8) | low;
+	palette = (high >> 2) & 0x07;
+	priority = (high >> 5) & 1;
+	h_flip = (high >> 6) & 1;
+	v_flip = (high >> 7) & 1;
 
-	    if (n_scanline == pos_y) {
+	//Determine tile position on the screen
+	//TODO: consider 16x16 tiles, which is to say divide by 32*2*2
+	uint8_t tile_x, tile_y;
+	tile_x = (((i % 0x800) % (32*2))/2);
+	tile_y = (((i % 0x800) / (32*2)));
 
-	    	palette = attribute & 3;
-	    	priority = (attribute >> 5) & 1;
-	    	flip_h = (attribute >> 6) & 1;
-	    	flip_v = (attribute >> 7) & 1;
+	uint32_t character_address = (char_address << 13) + (tile_number * 8*bpp);
+	uint32_t palette_address = determinePaletteAddress(BG, mode);
 
-	    	large_sprite = (mem_ppu->PPUCTRL >> 5) & 1;
-	    	if (large_sprite) {
-	    	    patterntable = index & 1;
-	    	    index = index & 0xfe;
-	    	}
-	    	else {
-	    	    patterntable = (mem_ppu->PPUCTRL >> 3) & 1;
-	    	}
-
-	    	if (patterntable)
-	    	    index += 256;
-
-	    	if (pos_x > 8 || ((mem_ppu->PPUMASK >> 2)&1)) {
-	    	    for (int i2 = 0; i2<8; ++i2) {
-	    	        for (int j2 = 0; j2<8; ++j2) {
-			    line_addr = (index * 16) + i2;
-	    	            h_offset = (7-j2);
-	    	            unsigned char bitplane =
-	    	                (((mem_ppu->ram[line_addr])>>h_offset)&1) +
-	    	               ((((mem_ppu->ram[line_addr+8])>>h_offset)&1)<<1);
-            	            
-	    	            unsigned char color = mem_ppu->ram[0x3f10 + (palette << 2) + bitplane];
-	    	    	    uint8_t tmp_pos_x;
-	    	    	    uint8_t tmp_pos_y;
-	    	    	    if (flip_h)
-	    	    	        tmp_pos_x = pos_x + 7 - j2;
-	    	    	    else
-	    	    	        tmp_pos_x = pos_x + j2;
-	    	    	    if (flip_v)
-	    	    	        tmp_pos_y = pos_y + 7 - i2;
-	    	    	    else
-	    	    	        tmp_pos_y = pos_y + i2;
-
-			    int position = (tmp_pos_y*256) + tmp_pos_x;
-			    if (bitplane != 0 && position < 61440) {
-				if (priority == 0) {
-				    mem_ppu->vram[position] = colors[color];
-				}
-				else if (mem_ppu->vram[position] == colors[mem_ppu->ram[0x3f00]]) {
-				    mem_ppu->vram[position] = colors[color];
-				}
-			    }
-	    	        }
-	    	    }
-	    	}
-
-	    	if (large_sprite) {
-	    	    index += 1;
-	    	    pos_y += 16;
-	    	    if (pos_x > 8 || ((mem_ppu->PPUMASK >> 2)&1)) {
-	    	        for (int i2 = 0; i2<8; ++i2) {
-	    		    for (int j2 = 0; j2<8; ++j2) {
-				line_addr = (index * 16) + i2;
-	    		        h_offset = (7-j2);
-	    		        unsigned char bitplane =
-	    		            (((mem_ppu->ram[line_addr])>>h_offset)&1) +
-	    		           ((((mem_ppu->ram[line_addr+8])>>h_offset)&1)<<1);
-            		            
-	    		        unsigned char color = mem_ppu->ram[0x3f00 + (palette << 2) + 0x04 + bitplane];
-			        uint8_t tmp_pos_x;
-			        uint8_t tmp_pos_y;
-	    	    	        if (flip_h)
-				    tmp_pos_x = pos_x + 7 - j2;
-	    	    	        else
-				    tmp_pos_x = pos_x + j2;
-	    	    	        if (flip_v)
-				    tmp_pos_y = pos_y + 7 - i2;
-	    	    	        else
-				    tmp_pos_y = pos_y + i2;
-
-				int position = (tmp_pos_y*256) + tmp_pos_x;
-
-			    	if (bitplane != 0 && position < 61440) {
-			    	    if (priority == 0) {
-					mem_ppu->vram[position] = colors[color];
-			    	    }
-			    	    else if (mem_ppu->vram[position] == colors[mem_ppu->ram[0x3f00]]) {
-					mem_ppu->vram[position] = colors[color];
-			    	    }
-			    	}
-	    		    }
-	    		}
-	    	    }
-	    	}
+	//TODO:If direct color
+	//Separate in a function?
+	for (int i2; i2 < 8; ++i2) {
+	    for (int j2; j2 < 8; ++j2) {
+		uint8_t cg_index = 0;
+		for (uint8_t plane = 0; plane < bpp; plane += 2) {
+		    uint8_t lowplane = vram[character_address + (8*plane) + (i2*2)];
+		    uint8_t highplane = vram[character_address + (8*plane) + (i2*2) + 1];
+		    lowplane  = (lowplane >> (7-j2)) & 1;
+		    highplane = ((highplane >> (7-j2)) << 1) & 1;
+		    cg_index = (highplane | lowplane) << plane;
+		}
+		//To find the corresponding color, we sum:
+		//  - where the palette starts for this BG
+		//  - The palette index * 8 colors for each bpp
+		//  - The index computed with the bitplanes
+		uint32_t color = cg[palette_address + (palette * (8*bpp)) + cg_index];
+		color = convert_BGR_RGB(color);
+		
+		uint8_t pos_x = tile_x * 8, pos_y = tile_y * 8;
+		if (i >= 0x800 && i < 2*0x800) {
+		    if (tilemap_x_mirror) pos_x += 256;
+		    else if (tilemap_y_mirror) pos_y += 256;
+		}
+		else if (i >= 2*0x800 && i < 3*0x800) {
+		    pos_y += 256;
+		}
+		else {
+		    pos_x += 256;
+		    pos_y += 256;
+		}
+		pos_x += j2;
+		pos_y += i2;
+		bg_frame_buffer[pos_x + (1024*pos_y)] = color;	
 	    }
 	}
     }
-    */
 }
 
-void Ppu::draw(int n_scanline) {
-    /*
-    //Select what events the window will listen to
-    //XEvent ev;
-    unsigned int nametable;
-    unsigned int idx = 0;
-    unsigned int attribute_addr = 0;
-    unsigned char attribute;
-    unsigned int line_addr, h_offset;
-    unsigned int nt_off;
-    unsigned int patterntable;
-    int pos_x, pos_y, sc_off_x, sc_off_y;
-    //int a = XNextEvent(di, &ev);
-    //if (ev.type == Expose) {
-    //BG enable
-    if ((mem_ppu->PPUMASK >> 3)&1) {
-	if ((n_scanline & 0x7) == 0) {
-	    int i = n_scanline/8;
-	    //Leftmost tiles
-	    if (i > 0 || ((mem_ppu->PPUMASK >> 1)&1)) {
-		for (int j = 0; j<32; ++j) {
-	    	    //TILE
-	    	    for (int i2 = 0; i2<8; ++i2) {
-			for (int j2 = 0; j2<8; ++j2) {
-
-			    //Compute the scrolling tile offsets
-			    sc_off_y = mem_ppu->PPUSCROLL & 0x00ff;
-			    sc_off_x = ((mem_ppu->PPUSCROLL & 0xff00)>>8) & 0x00ff;
-
-			    //Compute which nametable we use
-			    nt_off = (mem_ppu->PPUCTRL & 3);
-
-			    //Compute the position
-			    pos_x = (j*8)+j2 - sc_off_x;
-			    if (pos_x < 0) {
-				pos_x += 32*8;
-				nt_off = (nt_off & 2) | ((nt_off+1) & 1);
-			    }
-			    pos_y = (i*8)+i2 - sc_off_y;
-			    if (pos_y < 0) {
-				pos_y += 30*8;
-				nt_off = ((nt_off+2) & 2) | (nt_off & 1);
-			    }
-
-			    nametable = 0x2000 + (nt_off * 0x0400);
-
-			    //Compute which pattern table we use
-			    patterntable = (mem_ppu->PPUCTRL >> 4) & 1;
-			    //Fetch the index of the bg tile
-			    idx = (mem_ppu->ram[nametable+(i*32)+j]);
-			    //If we use the second pt, we add 256 to the index
-			    if (patterntable) 
-				idx += 256;
-			    //Each pattern is 16-byte wide. i2 is the vertical offset
-			    line_addr = (idx * 16) + i2;
-			    //j2 is the horizontal offset. We start from the MSB
-			    h_offset = (7-j2);
-
-            	    	    //Compute the bitplane
-
-            	    	    
-            	    	    //Each tile is formed by two bitplanes. The first one
-            	    	    //is followed by the second one. We fetch the line_addr byte,
-            	    	    //which contains the first bitplane of a given line, and the
-            	    	    //line_addr+8 byte, which contains the second one. Using
-            	    	    //h_offset we get the particular bit of the line that we want
-            	    	    
-
-	    	    	    unsigned char bitplane = 
-	    	    	     (((mem_ppu->ram[line_addr]  )>>h_offset)&1) |
-	    	    	    ((((mem_ppu->ram[line_addr+8])>>h_offset)&1)<<1);
-
-            	    	    //Compute the attribute address of the tile
-            	    	    //TODO: this can be done outside the tile render loop
-	    	    	    attribute_addr = nametable + 0x03c0;
-            	    	    
-            	    	    
-            	    	    //Each attribute contains 4 pallette indexes corresponding to
-            	    	    //a 2x2 tile portion of the screen. They are arranged, from
-            	    	    //MSB to LSB as such:
-
-            	    	    //bottom right, bottom left, top right, top left
-            	    	    //     7,6           5,4        3,2       1,0
-
-            	    	    //That means that each pattern contains the pallette of
-            	    	    //two different rows and two different columns. If the
-            	    	    //row is odd, we shift the attribute 4 bits right, and if the
-            	    	    //column is odd, we shift the attribute 2 bits right. This
-            	    	    //way we get the correct pallette index on the lower 2 bits.
-            	    	    
-
-	    	    	    //Determine the attribute address
-	    	            attribute_addr = attribute_addr + (i/4)*8;
-	    	            attribute_addr = attribute_addr + (j/4);
-	    	    	    //Fetch the attribute byte
-	    	            attribute = mem_ppu->ram[attribute_addr];
-	    	    	    //Arrange the lower 2 bits with the correct pallette index
-	    	            if ((i & 3) > 1) {
-	    	                attribute = attribute >> 4;
-	    	            }
-	    	            if ((j & 3) > 1) {
-	    	                attribute = attribute >> 2;
-	    	            }
-	    	    	    //We compute the final pallette index with the bitplane value
-	    	            attribute = ((attribute << 2) | bitplane) & 0x000f;
-			    if (bitplane == 0) attribute = 0;
-	    	    	    //We fetch the color value
-	    	            unsigned char color = mem_ppu->ram[0x3f00 + attribute];
-			    int position = (pos_y*256)+pos_x;
-			    if (position < 61440)
-				mem_ppu->vram[position] = colors[color];
-			}
-		    }
-	    	}
-	    }
-	}
-    }
-    */
+uint32_t Ppu::determinePaletteAddress(uint8_t BG, uint8_t mode) {
+    //Mode zero separates BG palettes, the other don't
+    if (mode == 0)
+	return cg_address + (8*4*(BG-1));
+    else
+	return cg_address;
+ }
+	    
+uint32_t Ppu::convert_BGR_RGB(uint32_t bgr) {
+    uint8_t R = ((bgr       ) % 32) * 8;
+    uint8_t G = ((bgr /   32) % 32) * 8;
+    uint8_t B = ((bgr / 1024) % 32) * 8;
+    return ((R << 16) | (G << 8) | B);
 }
 
 void Ppu::drawScreen() {
-    for (uint32_t i = 0; i<VRAM_SIZE; ++i) {
-	    XSetForeground(di, gc, vram[i]);
-	    XDrawPoint(di, wi, gc, (i%256), (i/256));
+    for (uint32_t i = 0; i<256; ++i) {
+	for (uint32_t j = 0; j<256; ++j) {
+	    XSetForeground(di, gc, BG1_frame_buffer[j + (i*1024)]);
+	    XDrawPoint(di, wi, gc, j, i);
+	}
     }
 }
 
 void Ppu::vblank() {
-    /*
-    //Set the vblank bit
-    mem_ppu->PPUSTATUS = mem_ppu->PPUSTATUS | 0x80;
-    mem_ppu->in_vblank = true;
-    if ((mem_ppu->PPUCTRL >> 7) & 1)
-	cpu->NMI_execute();
-    */
 }
 
 ///////////////////
@@ -765,3 +655,23 @@ uint16_t Ppu::read_CGDATAREAD() {
     cg_address++;
     return result;
 }   
+
+void Ppu::initBppMatrix() {
+    bpp_matrix[0] = 4;
+    bpp_matrix[1] = 4;
+    bpp_matrix[2] = 4;
+    bpp_matrix[3] = 4;
+    bpp_matrix[4] = 16;
+    bpp_matrix[5] = 16;
+    bpp_matrix[6] = 4;
+    bpp_matrix[8] = 16;
+    bpp_matrix[9] = 16;
+    bpp_matrix[12] = 256;
+    bpp_matrix[13] = 16;
+    bpp_matrix[16] = 256;
+    bpp_matrix[17] = 4;
+    bpp_matrix[20] = 16;
+    bpp_matrix[21] = 4;
+    bpp_matrix[24] = 16;
+    bpp_matrix[28] = 256;
+}

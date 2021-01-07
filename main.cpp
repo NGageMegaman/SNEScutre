@@ -13,12 +13,20 @@
 using namespace std;
 
 int main() {
-    Clock nes_clock;
-    Ppu nes_ppu;
-    Cpu nes_cpu;
-    nes_cpu.clock = &nes_clock;
-    nes_cpu.mem.ppu = &nes_ppu;
+    Clock snes_clock;
+    Ppu snes_ppu;
+    Cpu snes_cpu;
+    snes_cpu.clock = &snes_clock;
+    snes_cpu.mem.ppu = &snes_ppu;
+    int count;
     while(1) {
-	    nes_cpu.execute();
+	    if (count > 100000) {
+		snes_ppu.drawBG(1,0);
+		snes_ppu.drawScreen();
+		snes_cpu.NMI_execute();
+		count = 0;
+	    }
+	    count++;
+	    snes_cpu.execute();
     }
 }

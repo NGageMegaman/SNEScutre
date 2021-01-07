@@ -9,10 +9,12 @@ using namespace std;
 class Ppu {
     public:
 	Ppu();
-	void draw(int n_scanline);
-	void drawSprites(int n_scanline);
+	void drawBG(uint8_t BG, uint8_t mode);
 	void drawScreen();
 	void vblank();
+	uint32_t determinePaletteAddress(uint8_t BG, uint8_t mode);
+	uint32_t convert_BGR_RGB(uint32_t bgr);
+	void initBppMatrix();
     void write_INIDISP(uint8_t data);
     void write_OBSEL(uint8_t data);
     void write_OAMADDL(uint8_t data);
@@ -121,4 +123,9 @@ class Ppu {
     bool r_intensity, g_intensity, b_intensity;
     uint8_t h_scanline, v_scanline;
     bool time_over, range_over, interlace, external_latch;
+    uint32_t *BG1_frame_buffer;
+    uint32_t *BG2_frame_buffer;
+    uint32_t *BG3_frame_buffer;
+    uint32_t *BG4_frame_buffer;
+    uint16_t *bpp_matrix;
 };

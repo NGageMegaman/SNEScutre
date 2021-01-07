@@ -140,52 +140,52 @@ void Cpu::execute() {
     case INC1:
         INC_A_execute();
         break;
-	case INX:
-	    INX_execute();
-	    break;
-	case INY:
-	    INY_execute();
-	    break;
-	case JMP1: case JMP3: case JMP4:
-	    JMP_execute(address);
-	    break;
+    case INX:
+        INX_execute();
+        break;
+    case INY:
+        INY_execute();
+        break;
+    case JMP1: case JMP3: case JMP4:
+        JMP_execute(address);
+        break;
     case JMP2: case JMP5:
         JML_execute(address);
         break;
-	case JSR1: case JSR2:
-	    JSR_execute(address);
-	    break;
+    case JSR1: case JSR2:
+	JSR_execute(address);
+	break;
     case JSL:
         JSL_execute(address);
-        break;
-	case LDA1: case LDA2: case LDA3: case LDA4: case LDA5:
+	break;
+    case LDA1: case LDA2: case LDA3: case LDA4: case LDA5:
     case LDA6: case LDA7: case LDA8: case LDA9: case LDAa:
     case LDAb: case LDAc: case LDAd: case LDAe: case LDAf:
-	    LDA_execute(operand);
-	    break;
-	case LDX1: case LDX2: case LDX3: case LDX4: case LDX5:
-	    LDX_execute(operand);
-	    break;
-	case LDY1: case LDY2: case LDY3: case LDY4: case LDY5:
-	    LDY_execute(operand);
-	    break;
-	case LSR1: case LSR3: case LSR4: case LSR5:
-	    LSR_mem_execute(address, operand);
-	    break;
-	case LSR2:
-	    LSR_A_execute();
-	    break;
+        LDA_execute(operand);
+	break;
+    case LDX1: case LDX2: case LDX3: case LDX4: case LDX5:
+        LDX_execute(operand);
+        break;
+    case LDY1: case LDY2: case LDY3: case LDY4: case LDY5:
+        LDY_execute(operand);
+        break;
+    case LSR1: case LSR3: case LSR4: case LSR5:
+        LSR_mem_execute(address, operand);
+        break;
+    case LSR2:
+        LSR_A_execute();
+        break;
     case MVN:
         MVN_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
         break;
     case MVP:
         MVP_execute(operand & 0x00ff, (operand >> 8) & 0x00ff);
         break;
-	case ORA1: case ORA2: case ORA3: case ORA4: case ORA5:
+    case ORA1: case ORA2: case ORA3: case ORA4: case ORA5:
     case ORA6: case ORA7: case ORA8: case ORA9: case ORAa:
     case ORAb: case ORAc: case ORAd: case ORAe: case ORAf:
-	    ORA_execute(operand);
-	    break;
+	ORA_execute(operand);
+	break;
     case PEA:
         PEA_execute(address);
         break;
@@ -195,9 +195,9 @@ void Cpu::execute() {
     case PER:
         PER_execute(address);
         break;
-	case PHA:
-	    PHA_execute();
-	    break;
+    case PHA:
+	PHA_execute();
+	break;
     case PHB:
         PHB_execute();
         break;
@@ -349,7 +349,7 @@ void Cpu::execute() {
 	default : 
 	    NOP_execute();
     }
-    debug_dump(opcode);
+    //debug_dump(opcode);
 }
 
 void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode) {
@@ -476,7 +476,7 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
             if (regP.X)
 		        read_operand_immediate(addr_mode, address, operand);
             else
-                read_operand_immediate_long(addr_mode, address, operand);
+                read_operand_immediate_word(addr_mode, address, operand);
         }
 	    break;
 	case 0x01:
@@ -492,14 +492,14 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
                     read_operand_immediate(addr_mode, address, operand);
                 }
                 else {
-                    read_operand_immediate_long(addr_mode, address, operand);
+                    read_operand_immediate_word(addr_mode, address, operand);
                 }
                 break;
             case PER: case BRL:
                 read_operand_relative_long(addr_mode, address, operand);
                 break;
             default:
-                read_operand_absolute_long(addr_mode, address, operand);
+                read_operand_immediate_long(addr_mode, address, operand);
         }
 	    break;
     case 0x03:
@@ -524,7 +524,7 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
             read_operand_immediate(addr_mode, address, operand);
         }
         else {
-            read_operand_immediate_long(addr_mode, address, operand);
+            read_operand_immediate_word(addr_mode, address, operand);
         }
         break;
 	case 0x0c:
@@ -584,28 +584,28 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
 	    read_operand_absolute_indexed_y(addr_mode, address, operand);
 	    break;
 	case 0x1c:
-        switch(opcode) {
-            case TRB2:
-	            read_operand_absolute(addr_mode, address, operand);
-                break;
-            case JMP2:
-                read_operand_absolute_long(addr_mode, address, operand);
-                break;
-            case JMP4:
-                read_operand_absolute_indexed_indirect(addr_mode, address, operand);
-                break;
-            case STZ3:
-                read_operand_absolute(addr_mode, address, operand);
-                break;
-            case JMP5:
-                read_operand_absolute_indirect_long(addr_mode, address, operand);
-                break;
-            case JSL:
-                read_operand_absolute_indexed_indirect(addr_mode, address, operand);
-                break;
-            default:
-                read_operand_absolute_indexed_x(addr_mode, address, operand);
-        }
+	    switch(opcode) {
+		case TRB2:
+	    	        read_operand_absolute(addr_mode, address, operand);
+            	    break;
+            	case JMP2:
+            	    read_operand_absolute_long(addr_mode, address, operand);
+            	    break;
+            	case JMP4:
+            	    read_operand_absolute_indexed_indirect(addr_mode, address, operand);
+            	    break;
+            	case STZ3:
+            	    read_operand_absolute(addr_mode, address, operand);
+            	    break;
+            	case JMP5:
+            	    read_operand_absolute_indirect_long(addr_mode, address, operand);
+            	    break;
+            	case JSR2:
+            	    read_operand_absolute_indexed_indirect(addr_mode, address, operand);
+            	    break;
+            	default:
+            	    read_operand_absolute_indexed_x(addr_mode, address, operand);
+	    }
 	    break;
 	case 0x1d:
         read_operand_absolute_indexed_x(addr_mode, address, operand);
@@ -631,7 +631,7 @@ void Cpu::read_operand_immediate(addr_mode_t *addr_mode, uint32_t *address, uint
     // INS #byte
     // address = 0
     // operand = byte
-    uint8_t op = mem.read_byte(regPC + 1);
+    uint8_t op = mem.read_byte((regPB << 16) | (regPC + 1));
     
     *address = 0;
     *operand = op;
@@ -639,17 +639,28 @@ void Cpu::read_operand_immediate(addr_mode_t *addr_mode, uint32_t *address, uint
     regPC += 2;
 }
 
-void Cpu::read_operand_immediate_long(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
+void Cpu::read_operand_immediate_word(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
     // INS #word
     // address = 0
     // operand = word
-    uint8_t op_l = mem.read_byte(regPC + 1);
-    uint8_t op_h = mem.read_byte(regPC + 2);
+    uint16_t op = mem.read_word((regPB << 16) | (regPC + 1));
     
     *address = 0;
-    *operand = ((op_h << 8) & 0xff00) | (op_l & 0x00ff);
+    *operand = op;
     *addr_mode = IMMEDIATE;
     regPC += 3;
+}
+
+void Cpu::read_operand_immediate_long(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
+    // INS #long
+    // address = long
+    // operand = long (Only used by JSL, we store it on address)
+    uint32_t op = mem.read_long((regPB << 16) | (regPC + 1));
+    
+    *address = op;
+    *operand = *address;
+    *addr_mode = IMMEDIATE;
+    regPC += 4;
 }
 
 void Cpu::read_operand_relative(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
@@ -657,7 +668,7 @@ void Cpu::read_operand_relative(addr_mode_t *addr_mode, uint32_t *address, uint1
     // address = PC + increment (signed)
     // operand = increment
 
-    int8_t increment = mem.read_byte(regPC + 1);
+    int8_t increment = mem.read_byte((regPB << 16) | (regPC + 1));
 
     regPC += 2;
     *address = (int16_t) regPC + (int16_t) increment;
@@ -670,7 +681,7 @@ void Cpu::read_operand_relative_long(addr_mode_t *addr_mode, uint32_t *address, 
     // address = PC + increment (signed)(2-bytes)
     // operand = increment
 
-    int16_t increment = mem.read_word(regPC + 1);
+    int16_t increment = mem.read_word((regPB << 16) | (regPC + 1));
 
     regPC += 3;
     *address = (int16_t) regPC + increment;
@@ -683,7 +694,7 @@ void Cpu::read_operand_direct(addr_mode_t *addr_mode, uint32_t *address, uint16_
     // address = 00:DP+byte
     // operand = ram[address]
 
-    *address = (mem.read_byte(regPC + 1) + regDP) & 0x00ffff;
+    *address = (mem.read_byte((regPB << 16) | (regPC + 1)) + regDP) & 0x00ffff;
     *operand = mem.read_word(*address);
     *addr_mode = DIRECT;
     regPC += 2;
@@ -694,7 +705,7 @@ void Cpu::read_operand_direct_indexed_x(addr_mode_t *addr_mode, uint32_t *addres
     // address = 00:DP+byte+x
     // operand = ram[address]
 
-    *address = (mem.read_byte(regPC + 1) + regX + regDP) & 0x00ffff;
+    *address = (mem.read_byte((regPB << 16) | (regPC + 1)) + regX + regDP) & 0x00ffff;
     *operand = mem.read_word(*address);
     *addr_mode = DIRECT_INDEXED;
     regPC += 2;
@@ -705,7 +716,7 @@ void Cpu::read_operand_direct_indexed_y(addr_mode_t *addr_mode, uint32_t *addres
     // address = 00:DP+byte + y
     // operand = ram[address]
 
-    *address = (mem.read_byte(regPC + 1) + regY + regDP) & 0x00ffff;
+    *address = (mem.read_byte((regPB << 16) | (regPC + 1)) + regY + regDP) & 0x00ffff;
     *operand = mem.read_word(*address);
     *addr_mode = DIRECT_INDEXED;
     regPC += 2;
@@ -716,7 +727,7 @@ void Cpu::read_operand_direct_indirect(addr_mode_t *addr_mode, uint32_t *address
     // address = DB:ram[byte+DP]
     // operand = ram[address]
 
-    uint32_t ptr = (mem.read_byte(regPC + 1) + regDP) & 0x00ffff;
+    uint32_t ptr = (mem.read_byte((regPB << 16) | (regPC + 1)) + regDP) & 0x00ffff;
     
     *address = (regDB << 16) + mem.read_word(ptr);
     *operand = mem.read_word(*address);
@@ -729,7 +740,7 @@ void Cpu::read_operand_indexed_indirect(addr_mode_t *addr_mode, uint32_t *addres
     // address = ram[00:00:byte + x]
     // operand = ram[address]
 
-    uint32_t ptr = mem.read_byte(regPC + 1) + regX;
+    uint32_t ptr = mem.read_byte((regPB << 16) | (regPC + 1)) + regX;
 
     *address = mem.read_word(ptr);
     *operand = mem.read_word(*address);
@@ -742,7 +753,7 @@ void Cpu::read_operand_direct_indirect_long(addr_mode_t *addr_mode, uint32_t *ad
     // address_long = ram[byte+DP]
     // operand = ram[address_long]
 
-    uint32_t ptr = (mem.read_byte(regPC + 1) + regDP) & 0x00ffff;
+    uint32_t ptr = (mem.read_byte((regPB << 16) | (regPC + 1)) + regDP) & 0x00ffff;
     
     *address = mem.read_long(ptr);
     *operand = mem.read_word(*address);
@@ -755,7 +766,7 @@ void Cpu::read_operand_absolute(addr_mode_t *addr_mode, uint32_t *address, uint1
     // address = DB:word
     // operand = ram[address]
 
-    uint32_t addr = (regDB << 16) | mem.read_word(regPC + 1);
+    uint32_t addr = (regDB << 16) | mem.read_word((regPB << 16) | (regPC + 1));
     *address = addr;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE;
@@ -768,7 +779,7 @@ void Cpu::read_operand_absolute_indexed_x(addr_mode_t *addr_mode, uint32_t *addr
     // operand = ram[address]
 
     uint32_t addr = 
-        (regDB << 16) | ((mem.read_word(regPC + 1) + regX) & 0x00ffff);
+        (regDB << 16) | ((mem.read_word((regPB << 16) | (regPC + 1)) + regX) & 0x00ffff);
     *address = addr;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED;
@@ -781,7 +792,7 @@ void Cpu::read_operand_absolute_indexed_y(addr_mode_t *addr_mode, uint32_t *addr
     // operand = ram[address]
 
     uint32_t addr = 
-        (regDB << 16) | ((mem.read_word(regPC + 1) + regY) & 0x00ffff);
+        (regDB << 16) | ((mem.read_word((regPB << 16) | (regPC + 1)) + regY) & 0x00ffff);
     *address = addr;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED;
@@ -793,7 +804,7 @@ void Cpu::read_operand_absolute_long(addr_mode_t *addr_mode, uint32_t *address, 
     // address = long
     // operand = ram[address]
 
-    *address = mem.read_long(regPC + 1);
+    *address = mem.read_long((regPB << 16) | (regPC + 1));
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_LONG;
     regPC += 4;
@@ -804,7 +815,7 @@ void Cpu::read_operand_absolute_indexed_long(addr_mode_t *addr_mode, uint32_t *a
     // address = long + x
     // operand = ram[address]
 
-    *address = mem.read_long(regPC + 1) + regX;
+    *address = mem.read_long((regPB << 16) | (regPC + 1)) + regX;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED_LONG;
     regPC += 4;
@@ -815,7 +826,7 @@ void Cpu::read_operand_stack_relative(addr_mode_t *addr_mode, uint32_t *address,
     // address = 00:regSP + byte
     // operand = ram[address]
 
-    *address = (mem.read_byte(regPC + 1) + regSP) & 0x00ffff;
+    *address = (mem.read_byte((regPB << 16) | (regPC + 1)) + regSP) & 0x00ffff;
     *operand = mem.read_word(*address);
     *addr_mode = STACK_RELATIVE;
     regPC += 2;
@@ -826,7 +837,7 @@ void Cpu::read_operand_stack_relative_indirect_indexed(addr_mode_t *addr_mode, u
     // address = ram[00:regSP + byte]
     // operand = ram[address]
 
-    uint32_t ptr = (mem.read_byte(regPC + 1) + regSP) & 0x00ffff;
+    uint32_t ptr = (mem.read_byte((regPB << 16) | (regPC + 1)) + regSP) & 0x00ffff;
 
     *address = (regDB << 16) + mem.read_word(ptr) + regY;
     *operand = mem.read_word(*address);
@@ -839,7 +850,7 @@ void Cpu::read_operand_absolute_indirect(addr_mode_t *addr_mode, uint32_t *addre
     // address = ram[word]
     // operand = ram[address]
 
-    uint32_t ptr = mem.read_word(regPC + 1);
+    uint32_t ptr = mem.read_word((regPB << 16) | (regPC + 1));
 
     *address = mem.read_word(ptr);
     *operand = mem.read_word(*address);
@@ -852,7 +863,7 @@ void Cpu::read_operand_absolute_indirect_long(addr_mode_t *addr_mode, uint32_t *
     // address_long = ram[word]
     // operand = ram[address_long]
 
-    uint32_t ptr = mem.read_word(regPC + 1);
+    uint32_t ptr = mem.read_word((regPB << 16) | (regPC + 1));
 
     *address = mem.read_long(ptr);
     *operand = mem.read_word(*address);
@@ -865,7 +876,7 @@ void Cpu::read_operand_absolute_indexed_indirect(addr_mode_t *addr_mode, uint32_
     // address = ram[word + x]
     // operand = ram[address]
 
-    uint32_t ptr = (mem.read_word(regPC + 1) + regX) & 0x00ffff;
+    uint32_t ptr = (mem.read_word((regPB << 16) | (regPC + 1)) + regX) & 0x00ffff;
 
     *address = mem.read_word(ptr);
     *operand = mem.read_word(*address);
@@ -878,7 +889,7 @@ void Cpu::read_operand_absolute_long_indexed(addr_mode_t *addr_mode, uint32_t *a
     // address = long + x
     // operand = ram[address]
 
-    *address = mem.read_long(regPC + 1) + regX;
+    *address = mem.read_long((regPB << 16) | (regPC + 1)) + regX;
     *operand = mem.read_word(*address);
     *addr_mode = ABSOLUTE_INDEXED_LONG;
     regPC += 3;
@@ -890,7 +901,7 @@ void Cpu::read_operand_block_move(addr_mode_t *addr_mode, uint32_t *address, uin
     // operand = (dst << 8) | src
 
     *address = 0;
-    *operand = ((mem.read_byte(regPC+1)<<8)&0x00ff) | mem.read_byte(regPC+2);
+    *operand = ((mem.read_byte((regPB << 16) | (regPC+1))<<8)&0x00ff) | mem.read_byte(regPC+2);
     *addr_mode = BLOCK_MOVE;
     regPC += 3;
 }
@@ -900,7 +911,7 @@ void Cpu::read_operand_direct_indexed_indirect(addr_mode_t *addr_mode, uint32_t 
     // address = ram[DP+byte+x]
     // operand = ram[address]
 
-    uint32_t ptr = (regDP + regX + mem.read_byte(regPC+1)) & 0x00ffff;
+    uint32_t ptr = (regDP + regX + mem.read_byte((regPB << 16) | (regPC+1))) & 0x00ffff;
     *address = mem.read_word(ptr);
     *operand = mem.read_word((regDB << 16) + *address);
     *addr_mode = DIRECT_INDEXED_INDIRECT;
@@ -912,7 +923,7 @@ void Cpu::read_operand_direct_indirect_indexed(addr_mode_t *addr_mode, uint32_t 
     // address = (DB:mem[DP+byte])+y
     // operand = ram[address]
 
-    uint32_t ptr = (mem.read_byte(regPC+1) + regDP) & 0x00ffff;
+    uint32_t ptr = (mem.read_byte((regPB << 16) | (regPC+1)) + regDP) & 0x00ffff;
 
     *address = mem.read_word(ptr) + (regDB << 16) + regY;
     *operand = mem.read_word(*address);
@@ -925,7 +936,7 @@ void Cpu::read_operand_direct_indirect_long_indexed(addr_mode_t *addr_mode, uint
     // address_long = mem[DP+byte] + y
     // operand = ram[address_long]
 
-    uint32_t ptr = (mem.read_byte(regPC+1) + regDP) & 0x00ffff;
+    uint32_t ptr = (mem.read_byte((regPB << 16) | (regPC+1)) + regDP) & 0x00ffff;
 
     *address = mem.read_long(ptr) + regY;
     *operand = mem.read_word(*address);
@@ -1142,7 +1153,7 @@ void Cpu::BRK_execute() {
     uint8_t procStat;
     procStat =  (regP.N) << 7 |
 		(regP.V) << 6 |
-        (regP.M) << 5 |
+		(regP.M) << 5 |
 		(regP.X) << 4 |
 		(regP.D) << 3 |
 		(regP.I) << 2 |
@@ -1266,7 +1277,6 @@ void Cpu::CMP_execute(uint16_t operand) {
         regP.N = (comp >> 7) & 1;
     }
     else {
-        cout << std::hex << (unsigned) operand << endl;
         regP.C = regA >= operand;
         regP.Z = regA == operand;
         regP.N = (comp >> 15) & 1;
@@ -2427,8 +2437,9 @@ void Cpu::NMI_execute() {
     highPC = (regPC >> 8);
     
     uint8_t procStat;
-    procStat =  (regP.N) << 6 |
-		(regP.V) << 5 |
+    procStat =  (regP.N) << 7 |
+		(regP.V) << 6 |
+		(regP.M) << 5 |
 		(regP.X) << 4 |
 		(regP.D) << 3 |
 		(regP.I) << 2 |
@@ -2436,12 +2447,20 @@ void Cpu::NMI_execute() {
 		(regP.C);
     
     //We push the PC and Processor Status into the stack
+    if (!regP.E) {
+        pushStack(regPB);
+        clock->cycles += 1;
+    }
     pushStack(highPC);
     pushStack(lowPC);
     pushStack(procStat);
 
+    regPB = 0;
+    regP.D = 0;
+    regP.I = 1;
     //We set the PC to the interrupt vector
     regPC = mem.read_word(NMI_INT_VECTOR_ADDR);
+    cout << "NMI" << endl;
 }
 
 void Cpu::pushStack(uint8_t data) {
@@ -2466,14 +2485,14 @@ void Cpu::debug_dump(uint8_t inst) {
     cout << "regDB = " << std::hex << (unsigned) regDB << endl;
     cout << "regPB = " << std::hex << (unsigned) regPB << endl;
     cout << "regP =" << endl;
-    cout << "    C = " << (unsigned) regP.C;
-    cout << "    Z = " << (unsigned) regP.Z;
+    cout << "    N = " << (unsigned) regP.C;
+    cout << "    V = " << (unsigned) regP.Z;
     cout << "    M = " << (unsigned) regP.M;
-    cout << "    I = " << (unsigned) regP.I;
+    cout << "    X = " << (unsigned) regP.I;
     cout << "    D = " << (unsigned) regP.D;
-    cout << "    X = " << (unsigned) regP.X;
-    cout << "    V = " << (unsigned) regP.V;
-    cout << "    N = " << (unsigned) regP.N;
+    cout << "    I = " << (unsigned) regP.X;
+    cout << "    Z = " << (unsigned) regP.V;
+    cout << "    C = " << (unsigned) regP.N;
     cout << "    E = " << (unsigned) regP.E << endl;
     cout << "cycles = " << clock->cycles << endl;
 }
