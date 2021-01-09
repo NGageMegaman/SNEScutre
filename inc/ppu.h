@@ -9,10 +9,15 @@ using namespace std;
 class Ppu {
     public:
 	Ppu();
+    void drawBGs();
 	void drawBG(uint8_t BG);
+	void drawSprites();
+    void renderFrame();
+    bool colorMath(uint8_t top_layer, uint32_t *color, uint32_t sub_color);
 	void drawScreen();
 	void vblank();
 	uint32_t determinePaletteAddress(uint8_t BG, uint8_t mode);
+    void determineObjectSize(uint8_t *x, uint8_t *y, bool s);
 	uint32_t convert_BGR_RGB(uint32_t bgr);
 	void initBppMatrix();
     void write_INIDISP(uint8_t data);
@@ -70,7 +75,7 @@ class Ppu {
     uint8_t brightness;
     uint8_t object_size;
     uint8_t name_select;
-    uint8_t name_base_select;
+    uint32_t name_base_select;
     uint8_t OAMADDL, OAMADDH;
     uint16_t oam_address;
     uint8_t oam_low_buffer;
@@ -89,15 +94,10 @@ class Ppu {
     uint16_t BG2_hscroll, BG2_vscroll;
     uint16_t BG3_hscroll, BG3_vscroll;
     uint16_t BG4_hscroll, BG4_vscroll;
-    uint16_t BG5_hscroll, BG5_vscroll;
-    uint16_t BG6_hscroll, BG6_vscroll;
-    uint16_t BG7_hscroll, BG7_vscroll;
     bool BG1HOFS_h, BG1VOFS_h; 
     bool BG2HOFS_h, BG2VOFS_h;
     bool BG3HOFS_h, BG3VOFS_h; 
     bool BG4HOFS_h, BG4VOFS_h;
-    bool BG5HOFS_h, BG5VOFS_h;
-    bool BG6HOFS_h, BG6VOFS_h; 
     uint8_t address_increment_mode;
     uint8_t address_increment_amount;
     uint8_t address_remapping;
@@ -119,13 +119,20 @@ class Ppu {
     bool add_sub_color;
     bool half_color_math;
     bool BG1_color_math_en, BG2_color_math_en, BG3_color_math_en, BG4_color_math_en, OBJ_color_math_en, BD_color_math_en;
-    uint8_t color_intensity;
-    bool r_intensity, g_intensity, b_intensity;
     uint8_t h_scanline, v_scanline;
     bool time_over, range_over, interlace, external_latch;
+    uint32_t fixed_color;
     uint32_t *BG1_frame_buffer;
     uint32_t *BG2_frame_buffer;
     uint32_t *BG3_frame_buffer;
     uint32_t *BG4_frame_buffer;
+    uint32_t *obj_frame_buffer;
+    bool *BG1_priority_buffer;
+    bool *BG2_priority_buffer;
+    bool *BG3_priority_buffer;
+    bool *BG4_priority_buffer;
+    uint8_t *obj_priority_buffer;
+
+    uint32_t *frame_buffer;
     uint16_t *bpp_matrix;
 };

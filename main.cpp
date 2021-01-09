@@ -22,7 +22,7 @@ int main() {
     int count2 = 0;
     while(1) {
 	    if (count > 1000000) {
-		    snes_ppu.drawBG(3);
+		    snes_ppu.drawBGs();
 		    snes_ppu.drawScreen();
 		    cout << "NMI " << count2 << endl;
 		    ++count2;

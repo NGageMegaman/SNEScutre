@@ -459,7 +459,7 @@ void Mem::DMA_enable(uint8_t channel) {
     //cout << "DMA ENABLE " << (unsigned) channel << " " << std::hex << A << " " << B << " " << size << endl;
     if (B == 0x2122) debug = true;
 
-    for (int i = 0; i < size; ++i) {
+    for (uint32_t i = 0; i < size; ++i) {
 	if (mode == 0) {
 	    DMA_transfer_byte(A, B, dir);
 	    } else if (mode == 1) {

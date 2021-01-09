@@ -362,10 +362,11 @@ void Cpu::execute() {
     if (regP.M) {
 	    //regA &= 0x00ff;
     }
-    if (regPC == 0x93d7 || mem.debug) {
+    if (regPC == 0x8001) {
         mem.debug = true;
         //debug_dump(opcode);
     }
+    //debug_dump(opcode);
 }
 
 void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode) {
@@ -989,7 +990,7 @@ void Cpu::ADC_execute(uint16_t operand) {
             isCarry = true;
     }
     else {
-        if (result < regA) 
+        if (result < result_part) 
             isCarry = true;
     }
     
@@ -1038,16 +1039,19 @@ void Cpu::ASL_mem_execute(uint32_t address, uint16_t operand) {
     // Arithmetic shift left (Memory content)
     // M,Z,C,N = M*2
 
-    uint16_t result = operand << 1;
-
     if (regP.M) {
-	    mem.write_byte(address, (uint8_t) result);
+        uint8_t result = operand << 1;
 
-	    regP.Z = (uint8_t) result == 0;
+	    mem.write_byte(address, result);
+
+	    regP.Z = result == 0;
 	    regP.C = (operand >> 7) & 1;
 	    regP.N = (result >> 7) & 1;
+        clock->cycles += 2;
     }
     else {
+        uint16_t result = operand << 1;
+
 	    mem.write_word(address, result);
 
 	    regP.Z = result == 0;
@@ -1351,15 +1355,18 @@ void Cpu::DEC_mem_execute(uint32_t address, uint16_t operand) {
     //Decrement memory
     //M,Z,N = M-1
 
-    uint16_t result = operand-1;
-
     if (regP.M) {
-	    mem.write_byte(address, (uint8_t) result);
+        uint8_t result = operand-1;
 
-	    regP.Z = (uint8_t) result == 0;
+	    mem.write_byte(address, result);
+
+	    regP.Z = result == 0;
 	    regP.N = (result >> 7) & 1;
+        clock->cycles += 2;
     }
     else {
+        uint16_t result = operand-1;
+
 	    mem.write_word(address, result);
 
 	    regP.Z = result == 0;
@@ -1450,15 +1457,18 @@ void Cpu::INC_mem_execute(uint32_t address, uint16_t operand) {
     //Increment memory
     //M,Z,N = M+1
 
-    uint16_t result = operand + 1;
-
     if (regP.M) {
-        mem.write_byte(address, (uint8_t) result);
+        uint8_t result = operand + 1;
 
-        regP.Z = (uint8_t) result == 0;
+        mem.write_byte(address, result);
+
+        regP.Z = result == 0;
         regP.N = (result >> 7) & 1;
+        clock->cycles += 2;
     }
     else {
+        uint16_t result = operand + 1;
+
         mem.write_word(address, result);
 
         regP.Z = result == 0;
@@ -1619,8 +1629,7 @@ void Cpu::LDY_execute(uint16_t operand) {
 void Cpu::LSR_mem_execute(uint32_t address, uint16_t operand) {
     // Logical shift right (Memory content)
     // M,Z,C,N = M/2
-
-
+    
     if (regP.M) {
         uint8_t result = (operand >> 1) & 0x007f;
         mem.write_byte(address, (uint8_t) result);
@@ -1628,6 +1637,7 @@ void Cpu::LSR_mem_execute(uint32_t address, uint16_t operand) {
         regP.Z = (uint8_t) result == 0;
         regP.C = operand & 1;
         regP.N = (result >> 7) & 1;
+        clock->cycles += 1;
     }
     else {
         uint16_t result = (operand >> 1) & 0x7fff;
@@ -1981,17 +1991,18 @@ void Cpu::REP_execute(uint16_t operand) {
 void Cpu::ROL_mem_execute(uint32_t address, uint16_t operand) {
     // Rotate left (memory contents)
 
-    uint16_t result = (operand << 1) | regP.C;
-
     if (regP.M) {
+        uint8_t result = (operand << 1) | regP.C;
+
         mem.write_byte(address, (uint8_t) result);
 
         regP.C = (operand >> 7) & 1;
-        regP.Z = (uint8_t) result == 0;
+        regP.Z = result == 0;
         regP.N = (result >> 7) & 1;
-        clock->cycles += 1;
     }
     else {
+        uint16_t result = (operand << 1) | regP.C;
+
         mem.write_word(address, result);
 
         regP.C = (operand >> 15) & 1;
@@ -2024,10 +2035,8 @@ void Cpu::ROL_A_execute() {
 void Cpu::ROR_mem_execute(uint32_t address, uint16_t operand) {
     // Rotate right (memory contents)
 
-    uint16_t result;
-
     if (regP.M) {
-        result = ((operand >> 1) & 0x007f) | (regP.C << 7);
+        uint8_t result = ((operand >> 1) & 0x007f) | (regP.C << 7);
         mem.write_byte(address, (uint8_t) result);
 
         regP.C = operand & 1;
@@ -2035,7 +2044,7 @@ void Cpu::ROR_mem_execute(uint32_t address, uint16_t operand) {
         regP.N = (result >> 7) & 1;
     }
     else {
-        result = ((operand >> 1) & 0x7fff) | (regP.C << 15);
+        uint16_t result = ((operand >> 1) & 0x7fff) | (regP.C << 15);
         mem.write_word(address, result);
 
         regP.C = operand & 1;
@@ -2052,7 +2061,7 @@ void Cpu::ROR_A_execute() {
 	    uint8_t result = ((regA >> 1) & 0x007f) | (regP.C << 7);
 
 	    regP.C = regA & 1;
-	    regP.Z = result == 0;
+	    regP.Z = (uint8_t) result == 0;
 	    regP.N = (result >> 7) & 1;
 
 	    regA = (regA & 0xff00) | result;
@@ -2211,8 +2220,9 @@ void Cpu::STZ_execute(uint32_t address) {
     // Store zero to memory
     // M=0
 
-    if (regP.M)
-	    mem.write_byte(address, 0);
+    if (regP.M) {
+        mem.write_byte(address, 0);
+    }
     else {
 	    mem.write_word(address, 0);
         clock->cycles += 1;

@@ -25,46 +25,83 @@ Ppu::Ppu() {
     oam = (uint8_t *) malloc(sizeof(uint8_t) * OAM_SIZE);
     vram = (uint16_t *) malloc(sizeof(uint16_t) * VRAM_SIZE);
     cg = (uint16_t *) malloc(sizeof(uint16_t) * CG_SIZE);
-    BG1_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
-    BG2_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
-    BG3_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
-    BG4_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 1024 * 1024);
+    BG1_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 512 * 512);
+    BG2_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 512 * 512);
+    BG3_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 512 * 512);
+    BG4_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 512 * 512);
+    obj_frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 512 * 512);
+    BG1_priority_buffer = (bool *) malloc(sizeof(bool) * 512 * 512);
+    BG2_priority_buffer = (bool *) malloc(sizeof(bool) * 512 * 512);
+    BG3_priority_buffer = (bool *) malloc(sizeof(bool) * 512 * 512);
+    BG4_priority_buffer = (bool *) malloc(sizeof(bool) * 512 * 512);
+    obj_priority_buffer = (uint8_t *) malloc(sizeof(uint8_t) * 512 * 512);
+    frame_buffer = (uint32_t *) malloc(sizeof(uint32_t) * 512 * 512);
     bpp_matrix = (uint16_t *) malloc(sizeof(uint16_t) * 4 * 8);
+    
+    fixed_color = 0;
     initBppMatrix();
+
+    BG1HOFS_h = 0; BG1VOFS_h = 0;
+    BG2HOFS_h = 0; BG2VOFS_h = 0;
+    BG3HOFS_h = 0; BG3VOFS_h = 0;
+    BG4HOFS_h = 0; BG4VOFS_h = 0;
+    oam_h_addr = 0;
+}
+
+void Ppu::drawBGs() {
+    for (int i = 0; i<4; ++i) {
+        drawBG(i+1);
+    }
+    drawSprites();
+    renderFrame();
 }
 
 void Ppu::drawBG(uint8_t BG) {
     uint32_t *bg_frame_buffer;
-    if (BG == 1) bg_frame_buffer = BG1_frame_buffer;
-    else if (BG == 2) bg_frame_buffer = BG2_frame_buffer;
-    else if (BG == 3) bg_frame_buffer = BG3_frame_buffer;
-    else if (BG == 4) bg_frame_buffer = BG4_frame_buffer;
+    bool *bg_priority_buffer;
+    uint16_t hscroll, vscroll;
     //Determine tilemap addresses
     uint32_t tilemap_address, char_address;
     bool tilemap_x_mirror, tilemap_y_mirror;
     if (BG == 1) {
-	    tilemap_address  = BG1_tilemap_address;
-	    tilemap_x_mirror = BG1_tilemap_x_mirror;
-	    tilemap_y_mirror = BG1_tilemap_y_mirror;
-	    char_address     = BG1_char_address;
+        bg_frame_buffer    = BG1_frame_buffer;
+        bg_priority_buffer = BG1_priority_buffer;
+	    tilemap_address    = BG1_tilemap_address;
+	    tilemap_x_mirror   = BG1_tilemap_x_mirror;
+	    tilemap_y_mirror   = BG1_tilemap_y_mirror;
+	    char_address       = BG1_char_address;
+        hscroll            = BG1_hscroll;
+        vscroll            = BG1_vscroll;
     }
     else if (BG == 2) {
-	    tilemap_address  = BG2_tilemap_address;
-	    tilemap_x_mirror = BG2_tilemap_x_mirror;
-	    tilemap_y_mirror = BG2_tilemap_y_mirror;
-	    char_address     = BG2_char_address;
+        bg_frame_buffer    = BG2_frame_buffer;
+        bg_priority_buffer = BG2_priority_buffer;
+	    tilemap_address    = BG2_tilemap_address;
+	    tilemap_x_mirror   = BG2_tilemap_x_mirror;
+	    tilemap_y_mirror   = BG2_tilemap_y_mirror;
+	    char_address       = BG2_char_address;
+        hscroll            = BG2_hscroll;
+        vscroll            = BG2_vscroll;
     }
     else if (BG == 3) {
-	    tilemap_address  = BG3_tilemap_address;
-	    tilemap_x_mirror = BG3_tilemap_x_mirror;
-	    tilemap_y_mirror = BG3_tilemap_y_mirror;
-	    char_address     = BG3_char_address;
+        bg_frame_buffer    = BG3_frame_buffer;
+        bg_priority_buffer = BG3_priority_buffer;
+	    tilemap_address    = BG3_tilemap_address;
+	    tilemap_x_mirror   = BG3_tilemap_x_mirror;
+	    tilemap_y_mirror   = BG3_tilemap_y_mirror;
+	    char_address       = BG3_char_address;
+        hscroll            = BG3_hscroll;
+        vscroll            = BG3_vscroll;
     }
     else if (BG == 4) {
-	    tilemap_address  = BG4_tilemap_address;
-	    tilemap_x_mirror = BG4_tilemap_x_mirror;
-	    tilemap_y_mirror = BG4_tilemap_y_mirror;
-	    char_address     = BG4_char_address;
+        bg_frame_buffer    = BG4_frame_buffer;
+        bg_priority_buffer = BG4_priority_buffer;
+	    tilemap_address    = BG4_tilemap_address;
+	    tilemap_x_mirror   = BG4_tilemap_x_mirror;
+	    tilemap_y_mirror   = BG4_tilemap_y_mirror;
+	    char_address       = BG4_char_address;
+        hscroll            = BG4_hscroll;
+        vscroll            = BG4_vscroll;
     }
     uint32_t tilemap_size = 0x400;
     if (tilemap_x_mirror && !tilemap_y_mirror)
@@ -86,7 +123,6 @@ void Ppu::drawBG(uint8_t BG) {
 	    tile = vram[tilemap_address + i];
 
 	    tile_number = tile & 0x3ff;
-	    //tile_number = (tile + i) & 0x3ff;
 	    palette = (tile >> 10) & 0x07;
 	    priority = (tile >> 13) & 1;
 	    h_flip = (tile >> 14) & 1;
@@ -119,17 +155,9 @@ void Ppu::drawBG(uint8_t BG) {
 	    	    //  - where the palette starts for this BG
 	    	    //  - The palette index * 8 colors for each bpp
 	    	    //  - The index computed with the bitplanes
-                //cg[0] = 0x03;
-                //cg[1] = cg[0] << 3;
-                //cg[2] = cg[1] << 3;
-                //cg[3] = cg[2] << 3;
-                //cg[4] = cg[3] << 3;
-                //cg[5] = cg[4] << 3;
-                //cg[6] = cg[5] << 3;
-                //cg[7] = cg[6] << 3;
-	    	    uint32_t color = cg[palette_address + (palette*bpp*bpp) + cg_index];
-                //uint32_t color = cg[cg_index];
-	    	    color = convert_BGR_RGB(color);
+                uint32_t color;
+                if (cg_index == 0) color = -1; 
+	    	    else color = cg[palette_address + (palette*bpp*bpp) + cg_index];
 	    	    
 	    	    uint32_t pos_x = tile_x*8; 
                 uint32_t pos_y = tile_y*8;
@@ -144,11 +172,96 @@ void Ppu::drawBG(uint8_t BG) {
 	    	        pos_x += 256;
 	    	        pos_y += 256;
 	    	    }
-	    	    pos_x += j2;
-	    	    pos_y += i2;
-	    	    bg_frame_buffer[pos_x + (1024*pos_y)] = color;	
+                if (h_flip) pos_x += (7-j2);
+	    	    else pos_x += j2;
+                if (v_flip) pos_y += (7-i2);
+	    	    else pos_y += i2;
+                pos_x = (pos_x + hscroll) % 512;
+                pos_y = (pos_y - vscroll) % 512;
+	    	    bg_frame_buffer[pos_x + (512*pos_y)] = color;	
+                bg_priority_buffer[pos_x + (512*pos_y)] = priority;
 	        }
 	    }
+    }
+}
+
+void Ppu::drawSprites() {
+    for (uint32_t i = 0; i < 512; ++i) {
+        for (uint32_t j = 0; j < 512; ++j) {
+            obj_frame_buffer[j + (i*512)] = -1;
+        }
+    }
+    //Sprite loop
+    for (uint32_t i = 0; i < 128; i++) {
+        uint8_t low_x = oam[(i*4)];
+        uint16_t tile_y = (oam[(i*4)+1]) & 0x00ff;
+        uint8_t first_tile = oam[(i*4)+2];
+        uint8_t byte4 = oam[(i*4)+3];
+        bool nametable = byte4 & 1;
+        uint8_t palette = (byte4 >> 1) & 0x07;
+        uint8_t priority = (byte4 >> 4) & 0x03;
+        bool h_flip = (byte4 >> 6) & 1;
+        bool v_flip = (byte4 >> 7) & 1;
+
+        uint8_t highByte = oam[512 + (i % 4)];
+        bool high_x = (highByte >> ((i % 4)*2)) & 1;
+        bool size = (highByte >> (((i % 4)*2)+1)) & 1;
+        //cout << size << endl;
+        uint16_t tile_x = (high_x << 8) | low_x;
+
+        uint8_t bpp = 4;
+
+        uint8_t size_x, size_y;
+        determineObjectSize(&size_x, &size_y, size);
+
+        if (i == (9 * 16 * 4)) cout << "puff pos y " << std::hex << (unsigned) tile_y << endl;
+
+        uint32_t character_address, base_pos_x, base_pos_y;
+
+        for (uint8_t horiz = 0; horiz < size_x; horiz++) {
+            for (uint8_t vert = 0; vert < size_y; vert++) {
+                uint32_t off_x = first_tile & 0x00f;
+                uint32_t off_y = first_tile & 0x0f0;
+                off_x = (off_x + (horiz)) & 0x00f;
+                off_y = (off_y + ((vert) << 4)) & 0x0f0;
+                uint8_t tile_number = off_y | off_x;
+	            character_address = (name_base_select + (tile_number<<4) + (nametable ? ((name_select+1)<<12) : 0)) & 0x7fff;
+                base_pos_x = tile_x;
+                base_pos_y = tile_y;
+	            //TODO:If direct color
+	            //Separate in a function?
+	            for (uint8_t i2 = 0; i2 < 8; ++i2) {
+	                for (uint8_t j2 = 0; j2 < 8; ++j2) {
+	            	    uint8_t cg_index = 0;
+	            	    for (uint8_t plane = 0; plane < bpp; plane += 2) {
+	            	        uint16_t hilo_plane = vram[character_address + (4*plane) + i2];
+	            	        uint8_t lowplane = hilo_plane & 0x00ff;
+	            	        uint8_t highplane = (hilo_plane >> 8) & 0x00ff;
+	            	        lowplane  = (lowplane >> (7-j2)) & 1;
+	            	        highplane = ((highplane >> (7-j2)) & 1) << 1;
+	            	        cg_index |= ((highplane | lowplane) << plane);
+	            	    }
+                        uint32_t color;
+                        if (cg_index == 0) color = -1; 
+	            	    else color = cg[128 + (palette*bpp*bpp) + cg_index];
+
+                        uint32_t pos_x = base_pos_x;
+                        uint32_t pos_y = base_pos_y;
+                        if (h_flip) {
+                            pos_x += (7-j2);
+                            pos_x += (((size_x-1) * 8) - (horiz * 8));
+                        }
+	            	    else pos_x += j2 + (horiz * 8);
+                        if (v_flip) pos_y += (7-i2) + (vert * 8);
+	            	    else pos_y += i2 + (vert * 8);
+                        pos_x %= 512;
+                        pos_y %= 512;
+	            	    obj_frame_buffer[pos_x + (512*pos_y)] = color;	
+                        obj_priority_buffer[pos_x + (512*pos_y)] = priority;
+	                }
+	            }
+            }
+        }
     }
 }
 
@@ -159,23 +272,291 @@ uint32_t Ppu::determinePaletteAddress(uint8_t BG, uint8_t mode) {
     else
 	    return 0;
  }
+
+void Ppu::determineObjectSize(uint8_t *x, uint8_t *y, bool s) {
+    switch (object_size) {
+        case 0:
+            if (!s) {
+                *x = 2;
+                *y = 2;
+            }
+            else {
+                *x = 1;
+                *y = 1;
+            }
+            break;
+        case 1:
+            if (!s) {
+                *x = 4;
+                *y = 4;
+            }
+            else {
+                *x = 1;
+                *y = 1;
+            }
+            break;
+        case 2:
+            if (!s) {
+                *x = 8;
+                *y = 8;
+            }
+            else {
+                *x = 1;
+                *y = 1;
+            }
+            break;
+        case 3:
+            if (!s) {
+                *x = 4;
+                *y = 4;
+            }
+            else {
+                *x = 2;
+                *y = 2;
+            }
+            break;
+        case 4:
+            if (!s) {
+                *x = 8;
+                *y = 8;
+            }
+            else {
+                *x = 2;
+                *y = 2;
+            }
+            break;
+        case 5:
+            if (!s) {
+                *x = 8;
+                *y = 8;
+            }
+            else {
+                *x = 4;
+                *y = 4;
+            }
+            break;
+        case 6:
+            if (!s) {
+                *x = 4;
+                *y = 8;
+            }
+            else {
+                *x = 2;
+                *y = 4;
+            }
+            break;
+        default:
+            if (!s) {
+                *x = 4;
+                *y = 4;
+            }
+            else {
+                *x = 2;
+                *y = 4;
+            }
+    }
+}
+
 	    
 uint32_t Ppu::convert_BGR_RGB(uint32_t bgr) {
-    uint8_t R = ((bgr       ) % 32) * 8;
-    uint8_t G = ((bgr /   32) % 32) * 8;
-    uint8_t B = ((bgr / 1024) % 32) * 8;
+    uint8_t R = (bgr & 0x001f) << 3;
+    uint8_t G = ((bgr & 0x03e0) >> 5) << 3;
+    uint8_t B = ((bgr & 0x7c00) >> 10) << 3;
     return ((R << 16) | (G << 8) | B);
 }
 
+void Ppu::renderFrame() {
+    uint32_t backdrop = fixed_color;
+    uint8_t top_layer = 0xf; //backdrop
+    switch (BG_mode) {
+        case 0:
+            for (uint32_t i = 0; i<512; ++i) {
+                for (uint32_t j = 0; j<512; ++j) {
+                    frame_buffer[j + (i * 512)] = backdrop;
+                    uint32_t color;
+                    if (!BG4_priority_buffer[j + (i*512)]) {
+                        color = BG4_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 4;
+                        }
+                    }
+                    if (!BG3_priority_buffer[j + (i*512)]) {
+                        color = BG3_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 3;
+                        }
+                    }
+                    if (BG4_priority_buffer[j + (i*512)]) {
+                        color = BG4_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 4;
+                        }
+                    }
+                    if (BG3_priority_buffer[j + (i*512)]) {
+                        color = BG3_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 3;
+                        }
+                    }
+                    if (!BG2_priority_buffer[j + (i*512)]) {
+                        color = BG2_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 2;
+                        }
+                    }
+                    if (!BG1_priority_buffer[j + (i*512)]) {
+                        color = BG1_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 1;
+                        }
+                    }
+                    if (BG2_priority_buffer[j + (i*512)]) {
+                        color = BG2_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 2;
+                        }
+                    }
+                    if (BG1_priority_buffer[j + (i*512)]) {
+                        color = BG1_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 1;
+                        }
+                    }
+                }
+            }
+            break;
+        case 1:
+            for (uint32_t i = 0; i<512; ++i) {
+                for (uint32_t j = 0; j<512; ++j) {
+                    frame_buffer[j + (i * 512)] = backdrop;
+                    uint32_t color;
+                    if (!BG3_priority_buffer[j + (i*512)]) {
+                        color = BG3_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 3;
+                        }
+                    }
+                    if (!mode1_BG3_priority) {
+                        if (BG3_priority_buffer[j + (i*512)]) {
+                            color = BG3_frame_buffer[j + (i*512)];
+                            if (color != -1) {
+                                frame_buffer[j + (i*512)] = color;
+                                top_layer = 3;
+                            }
+                        }
+                    }
+                    if (!BG2_priority_buffer[j + (i*512)]) {
+                        color = BG2_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 2;
+                        }
+                    }
+                    if (!BG1_priority_buffer[j + (i*512)]) {
+                        color = BG1_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 1;
+                        }
+                    }
+                    if (BG2_priority_buffer[j + (i*512)]) {
+                        color = BG2_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 2;
+                        }
+                    }
+                    if (BG1_priority_buffer[j + (i*512)]) {
+                        color = BG1_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 1;
+                        }
+                    }
+                    if (mode1_BG3_priority) {
+                        if (BG3_priority_buffer[j + (i*512)]) {
+                            color = BG3_frame_buffer[j + (i*512)];
+                            if (color != -1) {
+                                frame_buffer[j + (i*512)] = color;
+                                top_layer = 3;
+                            }
+                        }
+                    }
+                    //if (BG1_priority_buffer[j + (i*512)]) {
+                        color = obj_frame_buffer[j + (i*512)];
+                        if (color != -1) {
+                            frame_buffer[j + (i*512)] = color;
+                            top_layer = 5;
+                        }
+                    //}
+                    if (colorMath(top_layer, &color, backdrop)) {
+                        //frame_buffer[j + (i*512)] = color;
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+    }
+
+    
+        
+}
+
+bool Ppu::colorMath(uint8_t top_layer, uint32_t *color, uint32_t sub_color) {
+    bool enable = false;
+    if (top_layer == 1) enable = BG1_color_math_en;
+    else if (top_layer == 2) enable = BG2_color_math_en;
+    else if (top_layer == 3) enable = BG3_color_math_en;
+    else if (top_layer == 4) enable = BG4_color_math_en;
+    
+    if (enable) {
+        uint8_t colorb = (*color >> 10) & 0x1f;
+        uint8_t colorg = (*color >> 5) & 0x1f;
+        uint8_t colorr = *color & 0x1f;
+        uint8_t subb = (sub_color >> 10) & 0x1f;
+        uint8_t subg = (sub_color >> 5) & 0x1f;
+        uint8_t subr = sub_color & 0x1f;
+        if (add_sub_color) {
+            colorb -= subb;
+            colorg -= subg;
+            colorr -= subr;
+        }
+        else {
+            colorb += subb;
+            colorg += subg;
+            colorr += subr;
+        }
+        if (half_color_math) {
+            colorb = colorb >> 1;
+            colorg = colorg >> 1;
+            colorr = colorr >> 1;
+        }
+        *color = ((colorb & 0x1f) << 10) | ((colorg & 0x1f) << 10) | (colorr & 0x1f);
+        return true;
+    }
+    return false;
+}
+
 void Ppu::drawScreen() {
-    for (uint32_t i = 0; i<1024; ++i) {
-	for (uint32_t j = 0; j<1024; ++j) {
-	    XSetForeground(di, gc, BG3_frame_buffer[j + (i*1024)]);
-	    XDrawPoint(di, wi, gc, j, i);
-	}
+    for (uint32_t i = 0; i<512; ++i) {
+	    for (uint32_t j = 0; j<512; ++j) {
+	        XSetForeground(di, gc, convert_BGR_RGB(frame_buffer[j + (i*512)]));
+	        XDrawPoint(di, wi, gc, j, i);
+	    }
     }
     
     
+   /* 
     cout << "---- VRAM ----" << endl;
     cout << "BG1 TILEMAP DIR = " << std::hex << (unsigned) BG1_tilemap_address << endl; 
     cout << "BG2 TILEMAP DIR = " << std::hex << (unsigned) BG2_tilemap_address << endl; 
@@ -186,7 +567,7 @@ void Ppu::drawScreen() {
     cout << "BG2 CHAR DIR = " << std::hex << (unsigned) BG2_char_address << endl; 
     cout << "BG3 CHAR DIR = " << std::hex << (unsigned) BG3_char_address << endl; 
     cout << "BG4 CHAR DIR = " << std::hex << (unsigned) BG4_char_address << endl; 
-   /*  
+     
     for (uint32_t i = 0; i<VRAM_SIZE; i += 16) {
 	    cout << std::hex << (unsigned) i << " ";
 	    for (int j = 0; j<16; ++j) {
@@ -194,7 +575,6 @@ void Ppu::drawScreen() {
 	    }
 	    cout << endl;
     }
-    */
     for (uint32_t i = 0; i<CG_SIZE; i += 16) {
 	cout << std::hex << (unsigned) i << " ";
 	for (int j = 0; j<16; ++j) {
@@ -202,6 +582,7 @@ void Ppu::drawScreen() {
 	}
 	cout << endl;
     }
+    */
      
 }
 
@@ -220,7 +601,7 @@ void Ppu::write_INIDISP(uint8_t data) {
 
 void Ppu::write_OBSEL(uint8_t data) {
     //sssnnbbb
-    name_base_select = (data & 0x07) << 14; //14? is it 17 bits?
+    name_base_select = (data & 0x07) << 13;
     name_select = (data >> 3) & 0x03;
     object_size = (data >> 5) & 0x07;
 }
@@ -246,12 +627,15 @@ void Ppu::write_OAMDATA(uint8_t data) {
         //the buffered value to the low table also.
         //On the high table we only use the first
         //4 bits of the address
-        oam[0x200 | (oam_address & 0x0f)] = data;
+        oam[oam_address+1] = data;
         oam[oam_address] = oam_low_buffer;
         oam_h_addr = false;
-        oam_address++;
+        oam_address+=2;
     }
     else {
+        if (oam_address >= 0x100) {
+            oam[oam_address] = data;
+        }
         //We set the low buffer
         oam_low_buffer = data;
         oam_h_addr = true;
@@ -320,7 +704,7 @@ void Ppu::write_BG34NBA(uint8_t data) {
 void Ppu::write_BG1HOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG1HOFS_h) {
-        BG1_hscroll |= ((data << 8) & 0x03);
+        BG1_hscroll = (BG1_hscroll & 0x00ff) | ((data & 0x07) << 8);
         BG1HOFS_h = false;
     }
     else {
@@ -332,7 +716,7 @@ void Ppu::write_BG1HOFS(uint8_t data) {
 void Ppu::write_BG1VOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG1VOFS_h) {
-        BG1_vscroll |= ((data << 8) & 0x03);
+        BG1_vscroll = (BG1_vscroll & 0x00ff) | ((data & 0x07) << 8);
         BG1VOFS_h = false;
     }
     else {
@@ -344,7 +728,7 @@ void Ppu::write_BG1VOFS(uint8_t data) {
 void Ppu::write_BG2HOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG2HOFS_h) {
-        BG2_hscroll |= ((data << 8) & 0x03);
+        BG2_hscroll = (BG2_hscroll & 0x00ff) | ((data & 0x07) << 8);
         BG2HOFS_h = false;
     }
     else {
@@ -356,7 +740,7 @@ void Ppu::write_BG2HOFS(uint8_t data) {
 void Ppu::write_BG2VOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG2VOFS_h) {
-        BG2_vscroll |= ((data << 8) & 0x03);
+        BG2_vscroll = (BG2_vscroll & 0x00ff) | ((data & 0xf7) << 8);
         BG2VOFS_h = false;
     }
     else {
@@ -368,7 +752,7 @@ void Ppu::write_BG2VOFS(uint8_t data) {
 void Ppu::write_BG3HOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG3HOFS_h) {
-        BG3_hscroll |= ((data << 8) & 0x03);
+        BG3_hscroll = (BG3_hscroll & 0x00ff) | ((data & 0x07) << 8);
         BG3HOFS_h = false;
     }
     else {
@@ -380,7 +764,7 @@ void Ppu::write_BG3HOFS(uint8_t data) {
 void Ppu::write_BG3VOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG3VOFS_h) {
-        BG3_vscroll |= ((data << 8) & 0x03);
+        BG3_vscroll |= (BG3_vscroll & 0x00ff) | ((data & 0x07) << 8);
         BG3VOFS_h = false;
     }
     else {
@@ -392,7 +776,7 @@ void Ppu::write_BG3VOFS(uint8_t data) {
 void Ppu::write_BG4HOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG4HOFS_h) {
-        BG4_hscroll |= ((data << 8) & 0x03);
+        BG4_hscroll = (BG4_hscroll & 0x00ff) | ((data & 0x07) << 8);
         BG4HOFS_h = false;
     }
     else {
@@ -404,60 +788,12 @@ void Ppu::write_BG4HOFS(uint8_t data) {
 void Ppu::write_BG4VOFS(uint8_t data) {
     //------xx xxxxxxxx write twice
     if (BG4VOFS_h) {
-        BG4_vscroll |= ((data << 8) & 0x03);
+        BG4_vscroll |= (BG4_vscroll & 0x00ff) | ((data & 0x07) << 8);
         BG4VOFS_h = false;
     }
     else {
         BG4_vscroll = data;
         BG4VOFS_h = true;
-    }
-}
-
-void Ppu::write_BG5HOFS(uint8_t data) {
-    //------xx xxxxxxxx write twice
-    if (BG5HOFS_h) {
-        BG5_hscroll |= ((data << 8) & 0x03);
-        BG5HOFS_h = false;
-    }
-    else {
-        BG5_hscroll = data;
-        BG5HOFS_h = true;
-    }
-}
-
-void Ppu::write_BG5VOFS(uint8_t data) {
-    //------xx xxxxxxxx write twice
-    if (BG5VOFS_h) {
-        BG5_vscroll |= ((data << 8) & 0x03);
-        BG5VOFS_h = false;
-    }
-    else {
-        BG5_vscroll = data;
-        BG5VOFS_h = true;
-    }
-}
-
-void Ppu::write_BG6HOFS(uint8_t data) {
-    //------xx xxxxxxxx write twice
-    if (BG6HOFS_h) {
-        BG6_hscroll |= ((data << 8) & 0x03);
-        BG6HOFS_h = false;
-    }
-    else {
-        BG6_hscroll = data;
-        BG6HOFS_h = true;
-    }
-}
-
-void Ppu::write_BG6VOFS(uint8_t data) {
-    //------xx xxxxxxxx write twice
-    if (BG6VOFS_h) {
-        BG6_vscroll |= ((data << 8) & 0x03);
-        BG6VOFS_h = false;
-    }
-    else {
-        BG6_vscroll = data;
-        BG6VOFS_h = true;
     }
 }
 
@@ -501,7 +837,6 @@ void Ppu::write_VMDATAL(uint8_t data) {
     }
     
     vram[vram_address_remap] = (vram[vram_address_remap] & 0xff00) | data;
-    //cout << "MDATA L " << std::hex << (unsigned) vram_address_remap << " " << vram[vram_address_remap] << endl;
     if (address_increment_mode == 0) {
         vram_read_buffer = vram[vram_address_remap];
         if (address_increment_amount == 0) {
@@ -535,7 +870,6 @@ void Ppu::write_VMDATAH(uint8_t data) {
     }
     
     vram[vram_address_remap] = (vram[vram_address_remap]&0x00ff) | (data<<8);
-    //cout << "MDATA H " << std::hex << (unsigned) vram_address_remap << " " << vram[vram_address_remap] << endl;
     if (address_increment_mode == 1) {
         vram_read_buffer = vram[vram_address_remap];
         if (address_increment_amount == 0) {
@@ -550,7 +884,6 @@ void Ppu::write_VMDATAH(uint8_t data) {
 
 void Ppu::write_CGADD(uint8_t data) {
     //cccccccc
-    cout << "WRITE TO CGADD " << std::hex << (unsigned) data << endl;
     CGADD = data;
     cg_address = data;
     cg_h_write = 0;
@@ -608,22 +941,27 @@ void Ppu::write_CGADSUB(uint8_t data) {
 
 void Ppu::write_COLDATA(uint8_t data) {
     //bgrccccc
-    color_intensity = data & 0x1f;
-    r_intensity = (data >> 5) & 1;
-    g_intensity = (data >> 6) & 1;
-    b_intensity = (data >> 7) & 1;
+    uint8_t intensity = data & 0x1f;
+    if ((data >> 7) & 1) {
+        fixed_color = (fixed_color & 0x03ff) | (intensity << 10);
+    }
+    if ((data >> 6) & 1) {
+        fixed_color = (fixed_color & 0x7c1f) | (intensity << 5);
+    }
+    if ((data >> 5) & 1) {
+        fixed_color = (fixed_color & 0x7fe0) | intensity;
+    }
 }
 
 uint8_t Ppu::read_OAMDATAREAD() {
     uint8_t result;
     if (oam_h_addr == 1) {
-        result = oam[0x0200 | (oam_address & 0x0f)];
-        oam_address++;
+        result = oam[oam_address+1];
+        oam_address+=2;
         oam_h_addr = 0;
     }
     else {
         result = oam[oam_address];
-        oam_address++;
         oam_h_addr = 1;
     }
     return result;
