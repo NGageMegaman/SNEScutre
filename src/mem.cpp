@@ -33,6 +33,7 @@ Mem::Mem() {
     bus_a_address_b = (uint8_t *) malloc(sizeof(uint8_t) * 8);
     dma_size_l = (uint8_t *) malloc(sizeof(uint8_t) * 8);
     dma_size_h = (uint8_t *) malloc(sizeof(uint8_t) * 8);
+    debug = false;
 }
 
 uint8_t Mem::read_byte(uint32_t address) {
@@ -67,7 +68,11 @@ uint32_t Mem::read_long(uint32_t address) {
 
 void Mem::write_byte(uint32_t address, uint8_t data) {
     address = mirror(address);
-    if (address == 0x7e0100) cout << "HERE " << (unsigned) data << endl;
+    if (address == 0x7e0100) {
+        cout << "GAMEMODE " << std::hex << (unsigned) data << endl;
+        if (data == 3)
+            debug = true;
+    }
     //cout << "write " << address << " " << (unsigned) data << endl;
     if (!access_memory_mapped(address, data, NULL, true)) { 
         if (address == 0x2140) {
@@ -99,8 +104,6 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 
 void Mem::write_word(uint32_t address, uint16_t data) {
     address = mirror(address);
-    if (address == 0x7e0100) cout << "HERE " << (unsigned) data << endl;
-    if (address == 0x7e00ff) cout << "HERE " << (unsigned) data << endl;
     //cout << "write " << address << " " << (unsigned) data << endl;
     if (!access_memory_mapped(address, (data & 0x00ff), NULL, true)) 
         ram[address] = data & 0x00ff;
@@ -110,9 +113,6 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 
 void Mem::write_long(uint32_t address, uint32_t data) {
     address = mirror(address);
-    if (address == 0x7e100) cout << "HERE " << (unsigned) data << endl;
-    if (address == 0x7e0f9) cout << "HERE " << (unsigned) data << endl;
-    if (address == 0x7e0f8) cout << "HERE " << (unsigned) data << endl;
     //cout << "write " << address << " " << (unsigned) data << endl;
     if (!access_memory_mapped(address, (data & 0x0000ff), NULL, true)) 
         ram[address] = data & 0x0000ff;
@@ -264,56 +264,56 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
             case (0x2132):
                 ppu->write_COLDATA(data);
                 break;
-	    case (0x2180):
-		write_WMDATA(data);
-		break;
-	    case (0x2181):
-		write_WMADDL(data);
-		break;
-	    case (0x2182):
-		write_WMADDM(data);
-		break;
-	    case (0x2183):
-		write_WMADDH(data);
-		break;
-	    /////////////////
-	    //DMA REGISTERS//
-	    /////////////////
-	    case (0x420b):
-		write_MDMAEN(data);
-		break;
-	    case (0x4300):case (0x4310):case (0x4320):case (0x4330):
-	    case (0x4340):case (0x4350):case (0x4360):case (0x4370):
-		write_DMAPx(data, ((address >> 4) & 7));
-		break;
-	    case (0x4301):case (0x4311):case (0x4321):case (0x4331):
-	    case (0x4341):case (0x4351):case (0x4361):case (0x4371):
-		write_BBADx(data, ((address >> 4) & 7));
-		break;
-	    case (0x4302):case (0x4312):case (0x4322):case (0x4332):
-	    case (0x4342):case (0x4352):case (0x4362):case (0x4372):
-		write_A1TxL(data, ((address >> 4) & 7));
-		break;
-	    case (0x4303):case (0x4313):case (0x4323):case (0x4333):
-	    case (0x4343):case (0x4353):case (0x4363):case (0x4373):
-		write_A1TxH(data, ((address >> 4) & 7));
-		break;
-	    case (0x4304):case (0x4314):case (0x4324):case (0x4334):
-	    case (0x4344):case (0x4354):case (0x4364):case (0x4374):
-		write_A1Bx(data, ((address >> 4) & 7));
-		break;
-	    case (0x4305):case (0x4315):case (0x4325):case (0x4335):
-	    case (0x4345):case (0x4355):case (0x4365):case (0x4375):
-		write_DASxL(data, ((address >> 4) & 7));
-		break;
-	    case (0x4306):case (0x4316):case (0x4326):case (0x4336):
-	    case (0x4346):case (0x4356):case (0x4366):case (0x4376):
-		write_DASxH(data, ((address >> 4) & 7));
-		break;
-	    case (0x4307):case (0x4317):case (0x4327):case (0x4337):
-	    case (0x4347):case (0x4357):case (0x4367):case (0x4377):
-		write_DASBx(data, ((address >> 4) & 7));
-		break;
+	        case (0x2180):
+		    write_WMDATA(data);
+		    break;
+	        case (0x2181):
+		    write_WMADDL(data);
+		    break;
+	        case (0x2182):
+		    write_WMADDM(data);
+		    break;
+	        case (0x2183):
+		    write_WMADDH(data);
+		    break;
+	        /////////////////
+	        //DMA REGISTERS//
+	        /////////////////
+	        case (0x420b):
+		    write_MDMAEN(data);
+		    break;
+	        case (0x4300):case (0x4310):case (0x4320):case (0x4330):
+	        case (0x4340):case (0x4350):case (0x4360):case (0x4370):
+		    write_DMAPx(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4301):case (0x4311):case (0x4321):case (0x4331):
+	        case (0x4341):case (0x4351):case (0x4361):case (0x4371):
+		    write_BBADx(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4302):case (0x4312):case (0x4322):case (0x4332):
+	        case (0x4342):case (0x4352):case (0x4362):case (0x4372):
+		    write_A1TxL(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4303):case (0x4313):case (0x4323):case (0x4333):
+	        case (0x4343):case (0x4353):case (0x4363):case (0x4373):
+		    write_A1TxH(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4304):case (0x4314):case (0x4324):case (0x4334):
+	        case (0x4344):case (0x4354):case (0x4364):case (0x4374):
+		    write_A1Bx(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4305):case (0x4315):case (0x4325):case (0x4335):
+	        case (0x4345):case (0x4355):case (0x4365):case (0x4375):
+		    write_DASxL(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4306):case (0x4316):case (0x4326):case (0x4336):
+	        case (0x4346):case (0x4356):case (0x4366):case (0x4376):
+		    write_DASxH(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4307):case (0x4317):case (0x4327):case (0x4337):
+	        case (0x4347):case (0x4357):case (0x4367):case (0x4377):
+		    write_DASBx(data, ((address >> 4) & 7));
+		    break;
             default:
                 return false;
         }
@@ -392,7 +392,7 @@ void Mem::write_MDMAEN(uint8_t data) {
 	if ((data & 1) == 1) {
 	    DMA_enable(i);
 	}
-	data = data >> 1;
+	    data = data >> 1;
     }
 }
 
@@ -445,7 +445,8 @@ void Mem::write_DASBx(uint8_t data, uint8_t channel) {
 /////////
 
 void Mem::DMA_enable(uint8_t channel) {
-    uint16_t size=(dma_size_h[channel] << 8) | dma_size_l[channel];
+    uint32_t size=(dma_size_h[channel] << 8) | dma_size_l[channel];
+    if (size == 0) size = 0x10000; 
     uint8_t mode = transfer_mode[channel];
     bool dir = dma_direction[channel];
     uint32_t A, B;
@@ -453,29 +454,34 @@ void Mem::DMA_enable(uint8_t channel) {
         (bus_a_address_h[channel] << 8) |
         (bus_a_address_l[channel]);
     B = 0x2100 | bus_b_address[channel];
+    A = mirror(A);
+
+    //cout << "DMA ENABLE " << (unsigned) channel << " " << std::hex << A << " " << B << " " << size << endl;
+    if (B == 0x2122) debug = true;
 
     for (int i = 0; i < size; ++i) {
 	if (mode == 0) {
 	    DMA_transfer_byte(A, B, dir);
-	} else if (mode == 1) {
-	    DMA_transfer_byte(A, B + (i % 2), dir);
-	} else if (mode == 2) {
-	    DMA_transfer_byte(A, B, dir);
-	} else if (mode == 3) {
-	    DMA_transfer_byte(A, B + ((i%4)/2), dir);
-	} else if (mode == 4) {
-	    DMA_transfer_byte(A, B + (i % 4), dir);
-	} else if (mode == 5) {
-	    DMA_transfer_byte(A, B + (i % 2), dir);
-	} else if (mode == 6) {
-	    DMA_transfer_byte(A, B, dir);
-	} else if (mode == 7) {
-	    DMA_transfer_byte(A, B + ((i%4)/2), dir);
-	}
-	if (!dma_fixed_transfer[channel]) {
-	    if (!dma_addr_increment[channel]) A++;
-	    else A--;
-	}
+	    } else if (mode == 1) {
+	        DMA_transfer_byte(A, B + (i % 2), dir);
+	    } else if (mode == 2) {
+	        DMA_transfer_byte(A, B, dir);
+	    } else if (mode == 3) {
+	        DMA_transfer_byte(A, B + ((i%4)/2), dir);
+	    } else if (mode == 4) {
+	        DMA_transfer_byte(A, B + (i % 4), dir);
+	    } else if (mode == 5) {
+	        DMA_transfer_byte(A, B + (i % 2), dir);
+	    } else if (mode == 6) {
+	        DMA_transfer_byte(A, B, dir);
+	    } else if (mode == 7) {
+	        DMA_transfer_byte(A, B + ((i%4)/2), dir);
+	    }
+	    if (!dma_fixed_transfer[channel]) {
+	        if (!dma_addr_increment[channel]) A++;
+	        else A--;
+	    }
+        //cout << std::hex << (unsigned) A << " " << (unsigned) ram[A] << endl;
     }
     dma_size_h[channel] = 0;
     dma_size_l[channel] = 0;
@@ -486,12 +492,12 @@ void Mem::DMA_enable(uint8_t channel) {
 
 void Mem::DMA_transfer_byte(uint32_t A, uint32_t B, bool dir) {
     if (!dir) { //A to B
-	access_memory_mapped(B, ram[A], NULL, true);
+	    access_memory_mapped(B, ram[A], NULL, true);
     }
     else {
-	uint8_t data;
-	access_memory_mapped(A, 0, &data, false);
-	ram[A] = data;
+	    uint8_t data;
+	    access_memory_mapped(A, 0, &data, false);
+	    ram[A] = data;
     }
 }
 

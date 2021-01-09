@@ -12,6 +12,7 @@ Cpu::Cpu() {
     regPB = 0x00;
     regDB = 0x00;
     regDP = 0x0000;
+    debug = false;
 }
 
 /*
@@ -107,6 +108,10 @@ void Cpu::execute() {
         case CMP6: case CMP7: case CMP8: case CMP9: case CMPa:
         case CMPb: case CMPc: case CMPd: case CMPe: case CMPf:
             CMP_execute(operand);
+            if (address == 0x2140) {
+                regP.Z = 1;
+                regP.V = 0;
+            }
             break;
         case COP:
             COP_execute();
@@ -350,13 +355,17 @@ void Cpu::execute() {
     	    NOP_execute();
     }
     if (regP.X) {
-	regY &= 0x00ff;
-	regX &= 0x00ff;
+	    regY &= 0x00ff;
+	    regX &= 0x00ff;
     }
+    
     if (regP.M) {
-	regA &= 0x00ff;
+	    //regA &= 0x00ff;
     }
-    debug_dump(opcode);
+    if (regPC == 0x93d7 || mem.debug) {
+        mem.debug = true;
+        //debug_dump(opcode);
+    }
 }
 
 void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode) {
@@ -985,16 +994,16 @@ void Cpu::ADC_execute(uint16_t operand) {
     }
     
     if (regP.M) {
-        signResult = (result >> 15) & 1;
-        signRegA = (regA >> 15) & 1;
-        signOperand = (operand >> 15) & 1;
-        regP.Z = (uint8_t) result == 0;
-        regA = (uint8_t) result;
-    }
-    else {
         signResult = (result >> 7) & 1;
         signRegA = (regA >> 7) & 1;
         signOperand = (operand >> 7) & 1;
+        regP.Z = (uint8_t) result == 0;
+        regA = (regA & 0xff00) | (uint8_t) result;
+    }
+    else {
+        signResult = (result >> 15) & 1;
+        signRegA = (regA >> 15) & 1;
+        signOperand = (operand >> 15) & 1;
         regP.Z = result == 0;
         regA = result;
         clock->cycles += 1;
@@ -1003,7 +1012,6 @@ void Cpu::ADC_execute(uint16_t operand) {
     regP.C = isCarry;
     regP.V = ((signRegA == signOperand) && (signResult != signRegA));
     regP.N = signResult;
-
 }
 
 void Cpu::AND_execute(uint16_t operand) {
@@ -1012,7 +1020,7 @@ void Cpu::AND_execute(uint16_t operand) {
     uint16_t result = regA & operand;
 
     if (regP.M) {
-        regA = (result & 0x00ff);
+        regA = (regA & 0xff00) | (result & 0x00ff);
 
         regP.Z = (uint8_t) result == 0;
         regP.N = (result >> 7) & 1;
@@ -1021,7 +1029,7 @@ void Cpu::AND_execute(uint16_t operand) {
         regA = result;
 
         regP.Z = result == 0;
-        regP.N = (result >> 7) & 1;
+        regP.N = (result >> 15) & 1;
         clock->cycles += 1;
     }
 }
@@ -1033,18 +1041,18 @@ void Cpu::ASL_mem_execute(uint32_t address, uint16_t operand) {
     uint16_t result = operand << 1;
 
     if (regP.M) {
-	mem.write_byte(address, result);
+	    mem.write_byte(address, (uint8_t) result);
 
-	regP.Z = (uint8_t) result == 0;
-	regP.C = (operand >> 7) & 1;
-	regP.N = (result >> 7) & 1;
+	    regP.Z = (uint8_t) result == 0;
+	    regP.C = (operand >> 7) & 1;
+	    regP.N = (result >> 7) & 1;
     }
     else {
-	mem.write_word(address, result);
+	    mem.write_word(address, result);
 
-	regP.Z = result == 0;
-	regP.C = (operand >> 15) & 1;
-	regP.N = (result >> 15) & 1;
+	    regP.Z = result == 0;
+	    regP.C = (operand >> 15) & 1;
+	    regP.N = (result >> 15) & 1;
         clock->cycles += 2;
     }
 }
@@ -1060,7 +1068,7 @@ void Cpu::ASL_A_execute() {
         regP.C = (regA >> 7) & 1;
         regP.N = (result >> 7) & 1;
 
-        regA = result & 0x00ff;
+        regA = (regA & 0xff00) | (result & 0x00ff);
     }
     else {
         regP.Z = result == 0;
@@ -1120,7 +1128,7 @@ void Cpu::BIT_execute(uint16_t operand) {
 
 void Cpu::BIT_imm_execute(uint16_t operand) {
     // Bit test
-    // tmp = A & M, N = tmp[7], V = tmp[6]
+    // tmp = A & M
 
     uint16_t tmp = regA & operand;
 
@@ -1346,15 +1354,16 @@ void Cpu::DEC_mem_execute(uint32_t address, uint16_t operand) {
     uint16_t result = operand-1;
 
     if (regP.M) {
-	mem.write_byte(address, result);
+	    mem.write_byte(address, (uint8_t) result);
 
-	regP.Z = (uint8_t) result == 0;
-	regP.N = (result >> 7) & 1;
+	    regP.Z = (uint8_t) result == 0;
+	    regP.N = (result >> 7) & 1;
     }
     else {
-	mem.write_word(address, result);
-	regP.Z = result == 0;
-	regP.N = (result >> 15) & 1;
+	    mem.write_word(address, result);
+
+	    regP.Z = result == 0;
+	    regP.N = (result >> 15) & 1;
         clock->cycles += 2;
     }
 }
@@ -1365,13 +1374,13 @@ void Cpu::DEC_A_execute() {
 
     uint16_t result = regA-1;
 
-    regA = result;
-
     if (regP.M) {
+        regA = (regA & 0xff00) | (uint8_t) result;
         regP.Z = (uint8_t) result == 0;
         regP.N = (result >> 7) & 1;
     }
     else {
+        regA = result;
         regP.Z = result == 0;
         regP.N = (result >> 15) & 1;
     }
@@ -1423,7 +1432,7 @@ void Cpu::EOR_execute(uint16_t operand) {
     uint16_t result = regA ^ operand;
 
     if (regP.M) {
-        regA = (uint8_t) result;
+        regA = (regA & 0xff00) | (uint8_t) result;
 
         regP.Z = (uint8_t) result == 0;
         regP.N = (result >> 7) & 1;
@@ -1463,13 +1472,14 @@ void Cpu::INC_A_execute() {
     //A,Z,N = A+1
 
     uint16_t result = regA + 1;
-    regA = result;
 
     if (regP.M) {
+        regA = (regA & 0xff00) | (uint8_t) result;
         regP.Z = (uint8_t) result == 0;
         regP.N = (result >> 7) & 1;
     }
     else {
+        regA = result;
         regP.Z = result == 0;
         regP.N = (result >> 15) & 1;
     }
@@ -1554,7 +1564,7 @@ void Cpu::LDA_execute(uint16_t operand) {
     //A,Z,N = M
 
     if (regP.M) {
-        regA = (uint8_t) operand;
+        regA = (regA & 0xff00) | (uint8_t) operand;
 
         regP.Z = (uint8_t) regA == 0;
         regP.N = (regA >> 7) & 1;
@@ -1610,9 +1620,9 @@ void Cpu::LSR_mem_execute(uint32_t address, uint16_t operand) {
     // Logical shift right (Memory content)
     // M,Z,C,N = M/2
 
-    uint16_t result = (operand >> 1) & 0x7fff;
 
     if (regP.M) {
+        uint8_t result = (operand >> 1) & 0x007f;
         mem.write_byte(address, (uint8_t) result);
 
         regP.Z = (uint8_t) result == 0;
@@ -1620,6 +1630,7 @@ void Cpu::LSR_mem_execute(uint32_t address, uint16_t operand) {
         regP.N = (result >> 7) & 1;
     }
     else {
+        uint16_t result = (operand >> 1) & 0x7fff;
         mem.write_word(address, result);
 
         regP.Z = result == 0;
@@ -1633,16 +1644,17 @@ void Cpu::LSR_A_execute() {
     // Logical shift right (Accumulator content)
     // A,Z,C,N = A/2
 
-    uint16_t result = (regA >> 1) & 0x7fff;
 
     if (regP.M) {
+        uint8_t result = (regA >> 1) & 0x007f;
         regP.Z = (uint8_t) result == 0;
         regP.C = regA & 1;
         regP.N = (result >> 7) & 1;
 
-        regA = (uint8_t) result;
+        regA = (regA & 0xff00) | (uint8_t) result;
     }
     else {
+        uint16_t result = (regA >> 1) & 0x7fff;
         regP.Z = result == 0;
         regP.C = regA & 1;
         regP.N = (result >> 15) & 1;
@@ -1683,7 +1695,7 @@ void Cpu::MVN_execute(uint8_t srcBank, uint8_t dstBank) {
     regDB = dstBank;
 
     if (regP.M)
-        regA = len & 0x00ff;
+        regA = (regA & 0xff00) | (len & 0x00ff);
     else
         regA = len & 0x00ffff;
 
@@ -1729,7 +1741,7 @@ void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
     regDB = dstBank;
 
     if (regP.M)
-        regA = len & 0x00ff;
+        regA = (regA & 0xff00) | (len & 0x00ff);
     else
         regA = len & 0x00ffff;
 
@@ -1754,7 +1766,7 @@ void Cpu::ORA_execute(uint16_t operand) {
     uint16_t result = regA | operand;
 
     if (regP.M) {
-	    regA = (uint8_t) result;
+	    regA = (regA & 0xff00) | (uint8_t) result;
 
     	regP.Z = (uint8_t) result == 0;
     	regP.N = (result >> 7) & 1;
@@ -1771,22 +1783,22 @@ void Cpu::ORA_execute(uint16_t operand) {
 void Cpu::PEA_execute(uint32_t address) {
     // Push effective absolute address
 
-    pushStack(address & 0x00ff);
     pushStack((address >> 8) & 0x00ff);
+    pushStack(address & 0x00ff);
 }
 
 void Cpu::PEI_execute(uint32_t address) {
     // Push effective indirect address
 
-    pushStack(address & 0x00ff);
     pushStack((address >> 8) & 0x00ff);
+    pushStack(address & 0x00ff);
 }
 
 void Cpu::PER_execute(uint32_t address) {
     // Push effective PC relative indirect address
 
-    pushStack(address & 0x00ff);
     pushStack((address >> 8) & 0x00ff);
+    pushStack(address & 0x00ff);
 }
 
 void Cpu::PHA_execute() {
@@ -1808,7 +1820,8 @@ void Cpu::PHB_execute() {
 void Cpu::PHD_execute() {
     // Push direct page register
 
-    pushStack(regDP);
+    pushStack((regDP >> 8) & 0x00ff);
+    pushStack(regDP & 0x00ff);
 }
 
 void Cpu::PHK_execute() {
@@ -1855,9 +1868,9 @@ void Cpu::PHY_execute() {
 void Cpu::PLA_execute() {
     // Pull accumulator
 
-    regA = pullStack();
+    regA = (regA & 0xff00) | pullStack();
     if (!regP.M) {
-	    regA |= (pullStack() << 8);
+	    regA = (pullStack() << 8) | (regA & 0x00ff);
 
 	    regP.Z = regA == 0;
 	    regP.N = (regA >> 15) & 1;
@@ -1882,9 +1895,10 @@ void Cpu::PLD_execute() {
     // Pull direct page register
 
     regDP = pullStack();
+    regDP = (pullStack() << 8) | (regDP & 0x00ff);
 
     regP.Z = regDP == 0;
-    regP.N = (regDP >> 7) & 1;
+    regP.N = (regDP >> 15) & 1;
 }
 
 void Cpu::PLP_execute() {
@@ -1901,13 +1915,13 @@ void Cpu::PLP_execute() {
     regP.C = procStat & 1;
 
     if (regP.E) {
-	regP.X = 1;
-	regP.M = 1;
+	    regP.X = 1;
+	    regP.M = 1;
     }
 
     if (regP.X) {
-	regX &= 0x00ff;
-	regY &= 0x00ff;
+	    regX &= 0x00ff;
+	    regY &= 0x00ff;
     }
 }
 
@@ -1916,7 +1930,7 @@ void Cpu::PLX_execute() {
 
     regX = pullStack();
     if (!regP.X) {
-	    regX |= (pullStack() << 8);
+	    regX = (pullStack() << 8) | (regX & 0x00ff);
 
 	    regP.Z = regX == 0;
 	    regP.N = (regX >> 15) & 1;
@@ -1933,7 +1947,7 @@ void Cpu::PLY_execute() {
 
     regY = pullStack();
     if (!regP.X) {
-	    regY |= (pullStack() << 8);
+	    regY = (pullStack() << 8) | (regY & 0x00ff);
 
 	    regP.Z = regY == 0;
 	    regP.N = (regY >> 15) & 1;
@@ -1970,7 +1984,7 @@ void Cpu::ROL_mem_execute(uint32_t address, uint16_t operand) {
     uint16_t result = (operand << 1) | regP.C;
 
     if (regP.M) {
-        mem.write_byte(address, result);
+        mem.write_byte(address, (uint8_t) result);
 
         regP.C = (operand >> 7) & 1;
         regP.Z = (uint8_t) result == 0;
@@ -1992,11 +2006,11 @@ void Cpu::ROL_A_execute() {
     uint16_t result = (regA << 1) | regP.C;
 
     if (regP.M) {
-	regP.C = (regA >> 7) & 1;
+	    regP.C = (regA >> 7) & 1;
     	regP.Z = (uint8_t) result == 0;
     	regP.N = (result >> 7) & 1;
     	
-    	regA = result & 0x00ff;
+    	regA = (regA & 0xff00) | (result & 0x00ff);
     }
     else {
 	    regP.C = (regA >> 15) & 1;
@@ -2013,8 +2027,8 @@ void Cpu::ROR_mem_execute(uint32_t address, uint16_t operand) {
     uint16_t result;
 
     if (regP.M) {
-        result = ((operand >> 1) & 0x007ff) | (regP.C << 7);
-        mem.write_byte(address, result);
+        result = ((operand >> 1) & 0x007f) | (regP.C << 7);
+        mem.write_byte(address, (uint8_t) result);
 
         regP.C = operand & 1;
         regP.Z = (uint8_t) result == 0;
@@ -2035,18 +2049,18 @@ void Cpu::ROR_A_execute() {
     // Rotate right (accumulator)
     
     if (regP.M) {
-	uint8_t result = ((regA >> 1) & 0x007f) | (regP.C << 7);
+	    uint8_t result = ((regA >> 1) & 0x007f) | (regP.C << 7);
 
-	regP.C = regA & 1;
-	regP.Z = result == 0;
-	regP.N = (result >> 7) & 1;
+	    regP.C = regA & 1;
+	    regP.Z = result == 0;
+	    regP.N = (result >> 7) & 1;
 
-	regA = result;
+	    regA = (regA & 0xff00) | result;
     }
     else {
-	uint16_t result = ((regA >> 1) & 0x7fff) | (regP.C << 15);
+	    uint16_t result = ((regA >> 1) & 0x7fff) | (regP.C << 15);
 
-	regP.C = regA & 1;
+	    regP.C = regA & 1;
     	regP.Z = result == 0;
     	regP.N = (result >> 15) & 1;
 
@@ -2155,10 +2169,10 @@ void Cpu::STA_execute(uint32_t address) {
     // M=A
 
     if (regP.M) {
-	mem.write_byte(address, (uint8_t) regA);
+	    mem.write_byte(address, (uint8_t) regA);
     }
     else {
-	mem.write_word(address, regA);
+	    mem.write_word(address, regA);
         clock->cycles += 1;
     }
 }
@@ -2279,16 +2293,16 @@ void Cpu::TSX_execute() {
     // X=SP
 
     if (regP.X) {
-	regX = regSP & 0x00ff;
-	
-	regP.Z = (uint8_t) regX == 0;
-	regP.N = (regX >> 7) & 1;
+	    regX = regSP & 0x00ff;
+	    
+	    regP.Z = (uint8_t) regX == 0;
+	    regP.N = (regX >> 7) & 1;
     }
     else {
-	regX = regSP;
+	    regX = regSP;
 
-	regP.Z = regX == 0;
-	regP.N = (regX >> 15) & 1;
+	    regP.Z = regX == 0;
+	    regP.N = (regX >> 15) & 1;
     }
 }
 
@@ -2297,18 +2311,18 @@ void Cpu::TXA_execute() {
     // A=X
 
     if (regP.M) {
-	regA = (regA & 0xff00) | (regX & 0x00ff);
+	    regA = (regA & 0xff00) | (regX & 0x00ff);
 
-	regP.Z = (uint8_t) regA == 0;
-	regP.N = (regA >> 7) & 1;
+	    regP.Z = (uint8_t) regA == 0;
+	    regP.N = (regA >> 7) & 1;
     }
     else {
-	regA = regX;
-	if (!regP.X)
-	    regA &= 0x00ff;
-	
-	regP.Z = regA == 0;
-	regP.N = (regA >> 15) & 1;
+	    regA = regX;
+	    if (regP.X)
+	        regA &= 0x00ff;
+	    
+	    regP.Z = regA == 0;
+	    regP.N = (regA >> 15) & 1;
     }
 }
 
@@ -2319,8 +2333,8 @@ void Cpu::TXS_execute() {
     regSP = regX;
 
     if (regP.E) {
-	regSP &= 0x00ff;
-	regSP |= 0x0100;
+	    regSP &= 0x00ff;
+	    regSP |= 0x0100;
     }
 }
 
@@ -2331,12 +2345,12 @@ void Cpu::TXY_execute() {
     regY = regX;
 
     if (regP.X) {
-	regP.Z = (uint8_t) regY == 0;
-	regP.N = (regY >> 7) & 1;
+	    regP.Z = (uint8_t) regY == 0;
+	    regP.N = (regY >> 7) & 1;
     }
     else {
-	regP.Z = regY == 0;
-	regP.N = (regY >> 15) & 1;
+	    regP.Z = regY == 0;
+	    regP.N = (regY >> 15) & 1;
     }
 }
 
@@ -2345,18 +2359,18 @@ void Cpu::TYA_execute() {
     // A = Y
 
     if (regP.M) {
-	regA = (regA & 0xff00) | (regY & 0x00ff);
+	    regA = (regA & 0xff00) | (regY & 0x00ff);
 
-	regP.Z = (uint8_t) regA == 0;
-	regP.N = (regA >> 7) & 1;
+	    regP.Z = (uint8_t) regA == 0;
+	    regP.N = (regA >> 7) & 1;
     }
     else {
-	regA = regY;
-	if (!regP.X)
-	    regA &= 0x00ff;
-	
-	regP.Z = regA == 0;
-	regP.N = (regA >> 15) & 1;
+	    regA = regY;
+	    if (regP.X)
+	        regA &= 0x00ff;
+	    
+	    regP.Z = regA == 0;
+	    regP.N = (regA >> 15) & 1;
     }
 }
 
@@ -2367,12 +2381,12 @@ void Cpu::TYX_execute() {
     regX = regY;
 
     if (regP.X) {
-	regP.Z = (uint8_t) regX == 0;
-	regP.N = (regX >> 7) & 1;
+	    regP.Z = (uint8_t) regX == 0;
+	    regP.N = (regX >> 7) & 1;
     }
     else {
-	regP.Z = regX == 0;
-	regP.N = (regX >> 15) & 1;
+	    regP.Z = regX == 0;
+	    regP.N = (regX >> 15) & 1;
     }
 }
 
@@ -2390,7 +2404,7 @@ void Cpu::TRB_execute(uint32_t address, uint16_t operand) {
     else {
 	    mem.write_word(address, result);
 	    
-	    regP.Z = regA & operand;
+	    regP.Z = (regA & operand) == 0;
         clock->cycles += 2;
     }
 }
@@ -2408,7 +2422,7 @@ void Cpu::TSB_execute(uint32_t address, uint16_t operand) {
     else {
 	    mem.write_word(address, result);
 	    
-	    regP.Z = regA & operand;
+	    regP.Z = (regA & operand) == 0;
         clock->cycles += 2;
     }
 }
@@ -2442,13 +2456,13 @@ void Cpu::XCE_execute() {
     regP.E = tmpC;
 
     if (!regP.E) {
-	regP.M = 1;
-	regP.X = 1;
+	    regP.M = 1;
+	    regP.X = 1;
     }
 
     if (regP.X) {
-	regX &= 0x00ff;
-	regY &= 0x00ff;
+	    regX &= 0x00ff;
+	    regY &= 0x00ff;
     }
 }
 
@@ -2530,20 +2544,22 @@ uint8_t Cpu::pullStack() {
 }
 
 void Cpu::debug_dump(uint8_t inst) {
+
     cout << "INSTRUCTION" << std::hex << (unsigned) inst << endl;
-    /*
+    
     cout << "regA =  " << std::hex << (unsigned) regA << endl;
     cout << "regX =  " << std::hex << (unsigned) regX << endl;
     cout << "regY =  " << std::hex << (unsigned) regY << endl;
-    */
+
     cout << "regPC = " << std::hex << (unsigned) regPC << endl;
-    /*
+     
     cout << "regSP = " << std::hex << (unsigned) regSP << endl;
     cout << "regDP = " << std::hex << (unsigned) regDP << endl;
+    
     cout << "regDB = " << std::hex << (unsigned) regDB << endl;
-    */
+    
     cout << "regPB = " << std::hex << (unsigned) regPB << endl;
-    /*
+    
     cout << "regP =" << endl;
     cout << "    C = " << (unsigned) regP.C;
     cout << "    Z = " << (unsigned) regP.Z;
@@ -2555,5 +2571,5 @@ void Cpu::debug_dump(uint8_t inst) {
     cout << "    N = " << (unsigned) regP.N;
     cout << "    E = " << (unsigned) regP.E << endl;
     cout << "cycles = " << clock->cycles << endl;
-    */
+    
 }

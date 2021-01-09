@@ -167,4 +167,5 @@ class Cpu {
 	    ProcStatus regP;
         uint8_t    regPB, regDB;
         uint16_t   regDP;
+        bool debug;
 };

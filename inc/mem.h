@@ -58,6 +58,8 @@ class Mem {
 	uint8_t *bus_a_address_b;
 	uint8_t *dma_size_l;
 	uint8_t *dma_size_h;
+    
+    bool debug;
 
-        Ppu *ppu;
+    Ppu *ppu;
 };

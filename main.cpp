@@ -21,13 +21,13 @@ int main() {
     int count = 0;
     int count2 = 0;
     while(1) {
-	    if (count > 100000) {
-		snes_ppu.drawBG(3);
-		snes_ppu.drawScreen();
-		cout << "NMI " << count2 << endl;
-		++count2;
-		snes_cpu.NMI_execute();
-		count = 0;
+	    if (count > 1000000) {
+		    snes_ppu.drawBG(3);
+		    snes_ppu.drawScreen();
+		    cout << "NMI " << count2 << endl;
+		    ++count2;
+		    snes_cpu.NMI_execute();
+		    count = 0;
 	    }
 	    count++;
 	    snes_cpu.execute();
