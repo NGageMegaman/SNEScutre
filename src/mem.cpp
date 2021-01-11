@@ -33,13 +33,59 @@ Mem::Mem() {
     bus_a_address_b = (uint8_t *) malloc(sizeof(uint8_t) * 8);
     dma_size_l = (uint8_t *) malloc(sizeof(uint8_t) * 8);
     dma_size_h = (uint8_t *) malloc(sizeof(uint8_t) * 8);
+
+    hdma_en = (bool *) malloc(sizeof(bool) * 8);
+    hdma_addr_mode = (bool *) malloc(sizeof(bool) * 8);
+    hdma_dir = (bool *) malloc(sizeof(bool) * 8);
+    hdma_finished = (bool *) malloc(sizeof(bool) * 8);
+    hdma_repeat = (bool *) malloc(sizeof(bool) * 8);
+    hdma_mode = (uint8_t *) malloc(sizeof(uint8_t) * 8);
+    hdma_lcount = (uint8_t *) malloc(sizeof(uint8_t) * 8);
+    hdma_ind_b = (uint8_t *) malloc(sizeof(uint8_t) * 8);
+    hdma_table = (uint32_t *) malloc(sizeof(uint32_t) * 8);
+    hdma_B = (uint32_t *) malloc(sizeof(uint32_t) * 8);
+    last_i = (uint32_t *) malloc(sizeof(uint32_t) * 8);
+    ind_incr = (uint32_t *) malloc(sizeof(uint32_t) * 8);
+
+    for (int i = 0; i<8; ++i) {
+        transfer_mode[i] = 0;
+        dma_fixed_transfer[i] = 0;
+        dma_addr_increment[i] = 0;
+        hdma_addr_mode[i] = 0;
+        dma_direction[i] = 0;
+        bus_b_address[i] = 0;
+        bus_a_address_l[i] = 0;
+        bus_a_address_h[i] = 0;
+        bus_a_address_b[i] = 0;
+        dma_size_l[i] = 0;
+        dma_size_h[i] = 0;
+
+        hdma_en[i] = 0;
+        hdma_addr_mode[i] = 0;
+        hdma_dir[i] = 0;
+        hdma_finished[i] = 0;
+        hdma_repeat[i] = 0;
+        hdma_mode[i] = 0;
+        hdma_lcount[i] = 0;
+        hdma_ind_b[i] = 0;
+        hdma_table[i] = 0;
+        hdma_B[i] = 0;
+        last_i[i] = 0;
+        ind_incr[i] = 0;
+    }
+
     debug = false;
 }
 
 uint8_t Mem::read_byte(uint32_t address) {
     address = mirror(address);
     uint8_t byte0;
-    if (!access_memory_mapped(address, 0, &byte0, false))
+    if (address == 0x4218) {
+        byte0 = controller_latch & 1;
+        controller_latch = controller_latch >> 1;
+        controller_latch |= 0x80;
+    }
+    else if (!access_memory_mapped(address, 0, &byte0, false))
         byte0 = ram[address];
     return byte0;
 }
@@ -70,11 +116,57 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
     address = mirror(address);
     if (address == 0x7e0100) {
         cout << "GAMEMODE " << std::hex << (unsigned) data << endl;
-        if (data == 3)
-            debug = true;
     }
     //cout << "write " << address << " " << (unsigned) data << endl;
-    if (!access_memory_mapped(address, data, NULL, true)) { 
+    if (address == 0x4218 || address == 0x4219) {
+	    controller_latch = 0;
+	    XEvent event;
+	    while (XPending(di)) {
+            cout << "KEY PRESS----------" << endl;
+	        XNextEvent(di, &event);
+	        int a;
+	        if (event.type == KeyRelease) {
+	    	    a = event.xkey.keycode;
+	    	    if (a == 52)       //z_key, B
+	        	    controller_inputs &= 0x7fff;
+	        	else if (a == 53)  //x_key, A
+	        	    controller_inputs &= 0xff7f;
+	        	else if (a == 22)  //backspace_key, SELECT
+	        	    controller_inputs &= 0xdfff;
+	        	else if (a == 36)  //enter_key, START
+	        	    controller_inputs &= 0xefff;
+	        	else if (a == 111)  //up_key, UP
+	        	    controller_inputs &= 0xf7ff;
+	        	else if (a == 116)  //down_key, DOWN
+	        	    controller_inputs &= 0xfbff;
+	        	else if (a == 113)  //left_key, LEFT
+	        	    controller_inputs &= 0xfdff;
+	        	else if (a == 114)  //right_key, RIGHT
+	        	    controller_inputs &= 0xfeff;
+	        }
+	        if (event.type == KeyPress) {
+	    	    a = event.xkey.keycode;
+	    	    if (a == 52)       //z_key, B
+	        	    controller_inputs |= 0x8000;
+	        	else if (a == 53)  //x_key, A
+	        	    controller_inputs |= 0x0080;
+	        	else if (a == 22)  //backspace_key, SELECT
+	        	    controller_inputs |= 0x2000;
+	        	else if (a == 36)  //enter_key, START
+	        	    controller_inputs |= 0x1000;
+	        	else if (a == 111)  //up_key, UP
+	        	    controller_inputs |= 0x0800;
+	        	else if (a == 116)  //down_key, DOWN
+	        	    controller_inputs |= 0x0400;
+	        	else if (a == 113)  //left_key, LEFT
+	        	    controller_inputs |= 0x0200;
+	        	else if (a == 114)  //right_key
+	        	    controller_inputs |= 0x0100;
+	        }
+	    }
+	    controller_latch = controller_inputs;
+    }
+    else if (!access_memory_mapped(address, data, NULL, true)) { 
         if (address == 0x2140) {
             if (!spc_transfer) {
                 if (data == 0xcc) {
@@ -104,8 +196,56 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 
 void Mem::write_word(uint32_t address, uint16_t data) {
     address = mirror(address);
+    if (address == 0x4218 || address == 0x4219) {
+	    controller_latch = 0;
+	    XEvent event;
+	    while (XPending(di)) {
+            cout << "KEY PRESS----------" << endl;
+	        XNextEvent(di, &event);
+	        int a;
+	        if (event.type == KeyRelease) {
+	    	    a = event.xkey.keycode;
+	    	    if (a == 52)       //z_key, B
+	        	    controller_inputs &= 0x7fff;
+	        	else if (a == 53)  //x_key, A
+	        	    controller_inputs &= 0xff7f;
+	        	else if (a == 22)  //backspace_key, SELECT
+	        	    controller_inputs &= 0xdfff;
+	        	else if (a == 36)  //enter_key, START
+	        	    controller_inputs &= 0xefff;
+	        	else if (a == 111)  //up_key, UP
+	        	    controller_inputs &= 0xf7ff;
+	        	else if (a == 116)  //down_key, DOWN
+	        	    controller_inputs &= 0xfbff;
+	        	else if (a == 113)  //left_key, LEFT
+	        	    controller_inputs &= 0xfdff;
+	        	else if (a == 114)  //right_key, RIGHT
+	        	    controller_inputs &= 0xfeff;
+	        }
+	        if (event.type == KeyPress) {
+	    	    a = event.xkey.keycode;
+	    	    if (a == 52)       //z_key, B
+	        	    controller_inputs |= 0x8000;
+	        	else if (a == 53)  //x_key, A
+	        	    controller_inputs |= 0x0080;
+	        	else if (a == 22)  //backspace_key, SELECT
+	        	    controller_inputs |= 0x2000;
+	        	else if (a == 36)  //enter_key, START
+	        	    controller_inputs |= 0x1000;
+	        	else if (a == 111)  //up_key, UP
+	        	    controller_inputs |= 0x0800;
+	        	else if (a == 116)  //down_key, DOWN
+	        	    controller_inputs |= 0x0400;
+	        	else if (a == 113)  //left_key, LEFT
+	        	    controller_inputs |= 0x0200;
+	        	else if (a == 114)  //right_key
+	        	    controller_inputs |= 0x0100;
+	        }
+	    }
+	    controller_latch = controller_inputs;
+    }
     //cout << "write " << address << " " << (unsigned) data << endl;
-    if (!access_memory_mapped(address, (data & 0x00ff), NULL, true)) 
+    else if (!access_memory_mapped(address, (data & 0x00ff), NULL, true)) 
         ram[address] = data & 0x00ff;
     if (!access_memory_mapped(address+1, ((data >> 8) & 0x00ff), NULL, true)) 
         ram[address+1] = (data >> 8) & 0x00ff;
@@ -238,23 +378,45 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
             case (0x2122):
                 ppu->write_CGDATA(data);
                 break;
-            //W12SEL
-            //W34SEL
-            //WOBJSEL
-            //WH0
-            //WH1
-            //WH2
-            //WH3
-            //WBGLOG
-            //WOBJLOG
+            case (0x2123):
+                ppu->write_W12SEL(data);
+                break;
+            case (0x2124):
+                ppu->write_W34SEL(data);
+                break;
+            case (0x2125):
+                ppu->write_WOBJSEL(data);
+                break;
+            case (0x2126):
+                ppu->write_WH0(data);
+                break;
+            case (0x2127):
+                ppu->write_WH1(data);
+                break;
+            case (0x2128):
+                ppu->write_WH2(data);
+                break;
+            case (0x2129):
+                ppu->write_WH3(data);
+                break;
+            case (0x212a):
+                ppu->write_WBGLOG(data);
+                break;
+            case (0x212b):
+                ppu->write_WOBJLOG(data);
+                break;
             case (0x212c):
                 ppu->write_TM(data);
                 break;
             case (0x212d):
                 ppu->write_TS(data);
                 break;
-            //TMW
-            //TSW
+            case (0x212e):
+                ppu->write_TMW(data);
+                break;
+            case (0x212f):
+                ppu->write_TSW(data);
+                break;
             case (0x2130):
                 ppu->write_CGWSEL(data);
                 break;
@@ -276,11 +438,29 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
 	        case (0x2183):
 		    write_WMADDH(data);
 		    break;
+            case (0x4202):
+                write_WRMPYA(data);
+                break;
+            case (0x4203):
+                write_WRMPYB(data);
+                break;
+            case (0x4204):
+                write_WRDIVL(data);
+                break;
+            case (0x4205):
+                write_WRDIVH(data);
+                break;
+            case (0x4206):
+                write_WRDIVB(data);
+                break;
 	        /////////////////
 	        //DMA REGISTERS//
 	        /////////////////
 	        case (0x420b):
 		    write_MDMAEN(data);
+		    break;
+	        case (0x420c):
+		    write_HDMAEN(data);
 		    break;
 	        case (0x4300):case (0x4310):case (0x4320):case (0x4330):
 	        case (0x4340):case (0x4350):case (0x4360):case (0x4370):
@@ -314,6 +494,18 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
 	        case (0x4347):case (0x4357):case (0x4367):case (0x4377):
 		    write_DASBx(data, ((address >> 4) & 7));
 		    break;
+	        case (0x4308):case (0x4318):case (0x4328):case (0x4338):
+	        case (0x4348):case (0x4358):case (0x4368):case (0x4378):
+		    write_A2AxL(data, ((address >> 4) & 7));
+		    break;
+	        case (0x4309):case (0x4319):case (0x4329):case (0x4339):
+	        case (0x4349):case (0x4359):case (0x4369):case (0x4379):
+		    write_A2AxH(data, ((address >> 4) & 7));
+		    break;
+	        case (0x430a):case (0x431a):case (0x432a):case (0x433a):
+	        case (0x434a):case (0x435a):case (0x436a):case (0x437a):
+		    write_NLTRx(data, ((address >> 4) & 7));
+		    break;
             default:
                 return false;
         }
@@ -327,8 +519,16 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
             *result = ppu->read_VMDATAHREAD();
         else if (address == 0x213b)
             *result = ppu->read_CGDATAREAD();
-	else if (address == 0x2180)
-	    *result = read_WMDATA();
+    	else if (address == 0x2180)
+    	    *result = read_WMDATA();
+    	else if (address == 0x4214)
+    	    *result = read_RDDIVL();
+    	else if (address == 0x4215)
+    	    *result = read_RDDIVH();
+    	else if (address == 0x4216)
+    	    *result = read_RDMPYL();
+    	else if (address == 0x4217)
+    	    *result = read_RDMPYH();
         else
             return false;
     }
@@ -389,10 +589,21 @@ void Mem::write_MDMAEN(uint8_t data) {
     //76543210
     //We check all bits for DMA transfers
     for (int i = 0; i<8; ++i) {
-	if ((data & 1) == 1) {
-	    DMA_enable(i);
-	}
+	    if ((data & 1) == 1) {
+	        DMA_enable(i);
+	    }
 	    data = data >> 1;
+    }
+}
+
+void Mem::write_HDMAEN(uint8_t data) {
+    //7654321
+    //We check all bits for HDMA transfers
+    for (int i = 0; i<8; ++i) {
+        if ((data & 1) == 1) {
+            HDMA_enable(i);
+        }
+        data = data >> 1;
     }
 }
 
@@ -428,16 +639,102 @@ void Mem::write_A1Bx(uint8_t data, uint8_t channel) {
 void Mem::write_DASxL(uint8_t data, uint8_t channel) {
     //llllllll
     dma_size_l[channel] = data;
+    //hdma_ind_l[channel] = data;
 }
 
 void Mem::write_DASxH(uint8_t data, uint8_t channel) {
     //hhhhhhhh
     dma_size_h[channel] = data;
+    //hdma_ind_h[channel] = data;
 }
 
 void Mem::write_DASBx(uint8_t data, uint8_t channel) {
     //bbbbbbbb
-    //TBI
+    hdma_ind_b[channel] = data;
+}
+
+void Mem::write_A2AxL(uint8_t data, uint8_t channel) {
+    //aaaaaaaa
+    hdma_table[channel] = (hdma_table[channel] & 0xff00) | data;
+}
+
+void Mem::write_A2AxH(uint8_t data, uint8_t channel) {
+    //aaaaaaaa
+    hdma_table[channel] = (hdma_table[channel] & 0x00ff) | (data << 8);
+}
+
+void Mem::write_NLTRx(uint8_t data, uint8_t channel) {
+    //rccccccc
+    hdma_repeat[channel] = (data >> 7) & 1;
+    hdma_lcount[channel] = data & 0x7f;
+}
+
+uint8_t Mem::read_NLTRx(uint8_t channel) {
+    return hdma_lcount[channel] | (hdma_repeat[channel] << 1);
+}
+
+
+//////////////////////
+// MULDIV REGISTERS //
+//////////////////////
+
+void Mem::write_WRMPYA(uint8_t data) {
+    //mmmmmmmm
+    mul_a = data;
+}
+
+void Mem::write_WRMPYB(uint8_t data) {
+    //mmmmmmmm
+    mul_b = data;
+    uint16_t result = mul_a * mul_b;
+    mult_divr_l = result & 0x00ff;
+    mult_divr_h = (result >> 8) & 0x00ff;
+}
+
+void Mem::write_WRDIVL(uint8_t data) {
+    //dddddddd
+    dividend_l = data;
+}
+
+void Mem::write_WRDIVH(uint8_t data) {
+    //dddddddd
+    dividend_h = data;
+}
+
+void Mem::write_WRDIVB(uint8_t data) {
+    //bbbbbbbb
+    uint16_t divisor = data;
+    if (divisor == 0) {
+        quotient_h = 0xff;
+        quotient_l = 0xff;
+        mult_divr_h = dividend_h;
+        mult_divr_l = dividend_l;
+    }
+    else {
+        uint16_t dividend = (dividend_h << 8) | dividend_l;
+        uint16_t quotient = dividend/divisor;
+        uint16_t remainder = dividend%divisor;
+        quotient_h = (quotient >> 8) & 0x00ff;
+        quotient_l = quotient & 0x00ff;
+        mult_divr_h = (remainder >> 8) & 0x00ff;
+        mult_divr_l = remainder & 0x00ff;
+    }
+}
+
+uint8_t Mem::read_RDDIVL() {
+    return quotient_l;
+}
+
+uint8_t Mem::read_RDDIVH() {
+    return quotient_h;
+}
+
+uint8_t Mem::read_RDMPYL() {
+    return mult_divr_l;
+}
+
+uint8_t Mem::read_RDMPYH() {
+    return mult_divr_h;
 }
 
 /////////
@@ -496,11 +793,129 @@ void Mem::DMA_transfer_byte(uint32_t A, uint32_t B, bool dir) {
     }
     else {
 	    uint8_t data;
-	    access_memory_mapped(A, 0, &data, false);
+	    access_memory_mapped(B, 0, &data, false);
 	    ram[A] = data;
     }
 }
 
+void Mem::HDMA_enable(uint8_t channel) {
+        
+    hdma_en[channel] = true;
+    hdma_mode[channel] = transfer_mode[channel];
+    hdma_dir[channel] = dma_direction[channel];
+    hdma_table[channel] = 0;
+    hdma_table[channel] = (bus_a_address_b[channel] << 16) | 
+                          (bus_a_address_h[channel] << 8) |
+                          (bus_a_address_l[channel]);
+    hdma_B[channel] = 0x2100 | bus_b_address[channel];
+    hdma_table[channel] = mirror(hdma_table[channel]);
+    hdma_finished[channel] = false;
+    last_i[channel] = 0;
+    write_NLTRx(0, channel);
+
+    //cout << "HDMA ENABLE " << (unsigned) channel << " " << (unsigned) hdma_B[channel] << endl;
+
+}
+
+void Mem::HDMA_hblank(uint8_t channel) {
+	uint8_t data;
+    bool first = false;
+    if (hdma_lcount[channel] == 0) {
+        if (hdma_dir[channel]) {
+	        access_memory_mapped(hdma_B[channel], 0, &data, false);
+        } else {
+            data = read_byte(hdma_table[channel]);
+        }
+        write_NLTRx(data, channel);
+        first = true;
+        ind_incr[channel] = 0;
+    }
+
+    if (hdma_lcount[channel] == 0 && hdma_repeat[channel] == 0) {
+        hdma_en[channel] = false;
+        hdma_finished[channel] = true;
+        return;
+    }
+
+    if (first || (hdma_lcount[channel] != 0 && hdma_repeat[channel] != 0)) {
+
+        first = false;
+        uint32_t base = hdma_table[channel];
+        uint32_t A;
+        uint32_t B = hdma_B[channel];
+        bool dir = hdma_dir[channel];
+        uint32_t i = last_i[channel];
+        uint32_t increment;
+        if (hdma_addr_mode[channel] == 0) {
+            A = base + 1;
+            increment = 2;
+        } else {
+            A = read_word(base + 1);
+            A = ((hdma_ind_b[channel] << 16) | A) + ind_incr[channel];
+            increment = 0;
+        }
+
+        A = mirror(A);
+
+	    if (hdma_mode[channel] == 0) {
+	        DMA_transfer_byte(A, B, dir);
+            ind_incr[channel] += 1;
+	    } else if (hdma_mode[channel] == 1) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B + 1, dir);
+            ind_incr[channel] += 2;
+	    } else if (hdma_mode[channel] == 2) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B, dir);
+            ind_incr[channel] += 2;
+	    } else if (hdma_mode[channel] == 3) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B, dir);
+	        DMA_transfer_byte(A + 2, B + 1, dir);
+	        DMA_transfer_byte(A + 3, B + 1, dir);
+            ind_incr[channel] += 4;
+	    } else if (hdma_mode[channel] == 4) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B + 1, dir);
+	        DMA_transfer_byte(A + 2, B + 2, dir);
+	        DMA_transfer_byte(A + 3, B + 3, dir);
+            ind_incr[channel] += 4;
+	    } else if (hdma_mode[channel] == 5) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B + 1, dir);
+	        DMA_transfer_byte(A + 2, B, dir);
+	        DMA_transfer_byte(A + 3, B + 1, dir);
+            ind_incr[channel] += 4;
+	    } else if (hdma_mode[channel] == 6) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B, dir);
+            ind_incr[channel] += 2;
+	    } else if (hdma_mode[channel] == 7) {
+	        DMA_transfer_byte(A, B, dir);
+	        DMA_transfer_byte(A + 1, B, dir);
+	        DMA_transfer_byte(A + 2, B + 1, dir);
+	        DMA_transfer_byte(A + 3, B + 1, dir);
+            ind_incr[channel] += 4;
+	    }
+        hdma_table[channel] += increment;
+        if (hdma_repeat[channel]) {
+            hdma_lcount[channel]--;
+            if (hdma_lcount[channel] == 0) hdma_table[channel] += 3;
+        }
+    }
+    else {
+        hdma_lcount[channel]--;
+    }
+}
+
+void Mem::hblank() {
+    for (int i = 0; i<8; ++i) {
+        if (hdma_en[i]) {
+            if (hdma_finished[i]) HDMA_enable(i);
+            else HDMA_hblank(i);
+        }
+    }
+}
 
 void Mem::load_rom(char *name) {
 

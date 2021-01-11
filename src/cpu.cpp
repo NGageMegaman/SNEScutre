@@ -362,10 +362,7 @@ void Cpu::execute() {
     if (regP.M) {
 	    //regA &= 0x00ff;
     }
-    if (regPC == 0x8001) {
-        mem.debug = true;
-        //debug_dump(opcode);
-    }
+    //if (regPC >= 0xcc14 && regPC <= 0xcc5b)
     //debug_dump(opcode);
 }
 
@@ -754,19 +751,6 @@ void Cpu::read_operand_direct_indirect(addr_mode_t *addr_mode, uint32_t *address
     regPC += 2;
 }
 
-void Cpu::read_operand_indexed_indirect(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
-    // INS ($byte, x)
-    // address = ram[00:00:byte + x]
-    // operand = ram[address]
-
-    uint32_t ptr = mem.read_byte((regPB << 16) | (regPC + 1)) + regX;
-
-    *address = mem.read_word(ptr);
-    *operand = mem.read_word(*address);
-    *addr_mode = DIRECT_INDEXED_INDIRECT;
-    regPC += 2;
-}
-
 void Cpu::read_operand_direct_indirect_long(addr_mode_t *addr_mode, uint32_t *address, uint16_t *operand) {
     // INS [$byte]
     // address_long = ram[byte+DP]
@@ -1119,13 +1103,13 @@ void Cpu::BIT_execute(uint16_t operand) {
 
     if (regP.M) {
         regP.Z = (uint8_t) tmp == 0;
-        regP.V = (tmp >> 6) & 1;
-        regP.N = (tmp >> 7) & 1;
+        regP.V = (operand >> 6) & 1;
+        regP.N = (operand >> 7) & 1;
     }
     else {
         regP.Z = tmp == 0;
-        regP.V = (tmp >> 14) & 1;
-        regP.N = (tmp >> 15) & 1;
+        regP.V = (operand >> 14) & 1;
+        regP.N = (operand >> 15) & 1;
         clock->cycles += 1;
     }
 }
@@ -1676,7 +1660,8 @@ void Cpu::LSR_A_execute() {
 void Cpu::MVN_execute(uint8_t srcBank, uint8_t dstBank) {
     //Move block negative
 
-    uint32_t len, srcAddr, dstAddr;
+    uint32_t srcAddr, dstAddr;
+    /*
     if (regP.M)
         len = regA & 0x00ff;
     else
@@ -1688,35 +1673,22 @@ void Cpu::MVN_execute(uint8_t srcBank, uint8_t dstBank) {
         srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
         dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
     }
-    else {
+    
+    else {*/
         srcAddr = ((srcBank << 16) & 0xff0000) | regX;
         dstAddr = ((dstBank << 16) & 0xff0000) | regY;
-    }
+    //}
 
-    do {
+    while (regA != 0xffff) {
         uint8_t byte = mem.read_byte(srcAddr);
         mem.write_byte(dstAddr, byte);
         srcAddr++;
         dstAddr++;
-        len--;
+        regA--;
         clock->cycles += 7;
-    } while (len != 0xffffffff);
+    } 
 
     regDB = dstBank;
-
-    if (regP.M)
-        regA = (regA & 0xff00) | (len & 0x00ff);
-    else
-        regA = len & 0x00ffff;
-
-    if (regP.X) {
-        regX = srcAddr & 0x0000ff;
-        regY = dstAddr & 0x0000ff;
-    }
-    else {
-        regX = srcAddr & 0x00ffff;
-        regY = dstAddr & 0x00ffff;
-    }
 }
 
 void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
@@ -2507,6 +2479,11 @@ void Cpu::NMI_execute() {
     regP.I = 1;
     //We set the PC to the interrupt vector
     regPC = mem.read_word(NMI_INT_VECTOR_ADDR);
+
+    //Disable HDMA
+    for (int i = 0; i<8; ++i) {
+        mem.hdma_en[i] = 0;
+    }
 }
 
 void Cpu::IRQ_execute() {

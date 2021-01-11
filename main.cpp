@@ -18,15 +18,20 @@ int main() {
     Cpu snes_cpu;
     snes_cpu.clock = &snes_clock;
     snes_cpu.mem.ppu = &snes_ppu;
+    snes_cpu.mem.di = snes_ppu.di;
     int count = 0;
     int count2 = 0;
     while(1) {
-	    if (count > 1000000) {
-		    snes_ppu.drawBGs();
+        if ((count % 18 == 0) && (count/18 < 242)) {
+            snes_ppu.drawBGs(count/18);
+            snes_cpu.mem.hblank();
+        }
+	    if (count > 10000) {
 		    snes_ppu.drawScreen();
 		    cout << "NMI " << count2 << endl;
 		    ++count2;
 		    snes_cpu.NMI_execute();
+            for (int i = 0; i<50000; ++i) snes_cpu.execute();
 		    count = 0;
 	    }
 	    count++;
