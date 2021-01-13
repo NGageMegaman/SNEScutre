@@ -1315,6 +1315,11 @@ void Ppu::write_CGWSEL(uint8_t data) {
     clip_colors_black = (data >> 6) & 0x03;
 }
 
+uint8_t Ppu::read_HVBJOY() {
+    //vh-----a
+    return ((in_vblank << 7) | (in_hblank << 6));
+}
+
 void Ppu::initBppMatrix() {
     bpp_matrix[0] = 2;
     bpp_matrix[1] = 2;

@@ -51,6 +51,8 @@ class Mem {
     uint8_t read_RDDIVH();
     uint8_t read_RDMPYL();
     uint8_t read_RDMPYH();
+    uint8_t read_JOY1L();
+    uint8_t read_JOY1H();
 	void DMA_enable(uint8_t channel);
 	void DMA_transfer_byte(uint32_t A, uint32_t B, bool dir);
     void HDMA_enable(uint8_t channel);
@@ -93,7 +95,7 @@ class Mem {
     uint8_t mul_a, mul_b, mult_divr_l, mult_divr_h;
     uint8_t dividend_l, dividend_h, quotient_l, quotient_h;
 
-    uint16_t controller_latch, controller_inputs;
+    uint16_t controller_latch, controller_inputs, controller_status;
     Display *di;
 
     bool debug;

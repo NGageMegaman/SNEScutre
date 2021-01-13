@@ -75,6 +75,8 @@ class Ppu {
     uint8_t read_VMDATAHREAD();
     uint16_t read_CGDATAREAD();
 
+    uint8_t read_HVBJOY();
+
 	Display *di;
 	int sc;
 	Window ro, wi;
@@ -170,6 +172,8 @@ class Ppu {
     bool BG1_sub_en, BG2_sub_en, BG3_sub_en, BG4_sub_en, OBJ_sub_en; 
     bool BG1_mainw_en, BG2_mainw_en, BG3_mainw_en, BG4_mainw_en, OBJ_mainw_en; 
     bool BG1_subw_en, BG2_subw_en, BG3_subw_en, BG4_subw_en, OBJ_subw_en; 
+
+    bool in_vblank, in_hblank;
 
     uint32_t *frame_buffer;
     uint16_t *bpp_matrix;

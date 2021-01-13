@@ -25,15 +25,18 @@ int main() {
         if ((count % 18 == 0) && (count/18 < 242)) {
             snes_ppu.drawBGs(count/18);
             snes_cpu.mem.hblank();
+            snes_ppu.in_hblank = true;
         }
+        if (count % 18 == 4) snes_ppu.in_hblank = false;
 	    if (count > 10000) {
 		    snes_ppu.drawScreen();
-		    cout << "NMI " << count2 << endl;
 		    ++count2;
+            snes_ppu.in_vblank = true;
 		    snes_cpu.NMI_execute();
             for (int i = 0; i<50000; ++i) snes_cpu.execute();
 		    count = 0;
 	    }
+        snes_ppu.in_vblank = false;
 	    count++;
 	    snes_cpu.execute();
     }

@@ -362,8 +362,10 @@ void Cpu::execute() {
     if (regP.M) {
 	    //regA &= 0x00ff;
     }
-    //if (regPC >= 0xcc14 && regPC <= 0xcc5b)
+    //if (regPB == 0x04 && regPC == 0xdc63)
     //debug_dump(opcode);
+    //if (mem.ram[0xceb1] != 0xad)
+    //if (mem.ram[0x7e0100] == 0x24 || mem.ram[0x7e0100] == 0xc)
 }
 
 void Cpu::add_clock_cycles(uint8_t opcode, uint32_t address, addr_mode_t addr_mode) {
@@ -521,8 +523,8 @@ void Cpu::read_operand(addr_mode_t *addr_mode, uint32_t *address, uint16_t *oper
             break;
 	case 0x04:
 	    if (opcode == MVP)
-                read_operand_block_move(addr_mode, address, operand);
-            else
+            read_operand_block_move(addr_mode, address, operand);
+        else
 	        read_operand_direct(addr_mode, address, operand);
 	    break;
 	case 0x05:
@@ -904,7 +906,8 @@ void Cpu::read_operand_block_move(addr_mode_t *addr_mode, uint32_t *address, uin
     // operand = (dst << 8) | src
 
     *address = 0;
-    *operand = ((mem.read_byte((regPB << 16) | (regPC+1))<<8)&0x00ff) | mem.read_byte(regPC+2);
+    *operand = ((mem.read_byte((regPB << 16) | (regPC+1))<<8)&0xff00) | 
+                (mem.read_byte((regPB << 16) | (regPC+2)) & 0x00ff);
     *addr_mode = BLOCK_MOVE;
     regPC += 3;
 }
@@ -1660,35 +1663,47 @@ void Cpu::LSR_A_execute() {
 void Cpu::MVN_execute(uint8_t srcBank, uint8_t dstBank) {
     //Move block negative
 
-    uint32_t srcAddr, dstAddr;
-    /*
+    uint32_t srcAddr, dstAddr, len;
+    
     if (regP.M)
         len = regA & 0x00ff;
     else
         len = regA;
-
-    len++;
 
     if (regP.X) {
         srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
         dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
     }
     
-    else {*/
+    else {
         srcAddr = ((srcBank << 16) & 0xff0000) | regX;
         dstAddr = ((dstBank << 16) & 0xff0000) | regY;
-    //}
+    }
 
-    while (regA != 0xffff) {
+    while (len != 0xffffffff) {
         uint8_t byte = mem.read_byte(srcAddr);
         mem.write_byte(dstAddr, byte);
         srcAddr++;
         dstAddr++;
-        regA--;
+        len--;
         clock->cycles += 7;
     } 
 
     regDB = dstBank;
+
+    if (regP.M)
+        regA = (regA & 0xff00) | (len & 0x00ff);
+    else
+        regA = len & 0x00ffff;
+
+    if (regP.X) {
+        regX = srcAddr & 0x0000ff;
+        regY = dstAddr & 0x0000ff;
+    }
+    else {
+        regX = srcAddr & 0x00ffff;
+        regY = dstAddr & 0x00ffff;
+    }
 }
 
 void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
@@ -1700,8 +1715,6 @@ void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
     else
         len = regA;
 
-    len++;
-
     if (regP.X) {
         srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
         dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
@@ -1711,14 +1724,14 @@ void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
         dstAddr = ((dstBank << 16) & 0xff0000) | regY;
     }
 
-    do {
+    while (len != 0xffffffff) {
         uint8_t byte = mem.read_byte(srcAddr);
         mem.write_byte(dstAddr, byte);
         srcAddr--;
         dstAddr--;
         len--;
         clock->cycles += 7;
-    } while (len != 0xffffffff);
+    } 
 
     regDB = dstBank;
 

@@ -12,7 +12,7 @@ Mem::Mem() {
     ram = (unsigned char *)malloc(RAM_SIZE);
     //Mem init with 0s
     for (unsigned int i = 0; i<=RAM_SIZE; ++i) {
-	    ram[i] = 0x01;
+	    ram[i] = 0xff;
     }
     
     load_rom("smw.sfc");
@@ -74,16 +74,19 @@ Mem::Mem() {
         ind_incr[i] = 0;
     }
 
+    controller_latch = 0xffff;
+    ram[0x4017] = 0;
+
     debug = false;
 }
 
 uint8_t Mem::read_byte(uint32_t address) {
     address = mirror(address);
     uint8_t byte0;
-    if (address == 0x4218) {
+    if (address == 0x4016) {
         byte0 = controller_latch & 1;
         controller_latch = controller_latch >> 1;
-        controller_latch |= 0x80;
+        controller_latch |= 0x8000;
     }
     else if (!access_memory_mapped(address, 0, &byte0, false))
         byte0 = ram[address];
@@ -93,9 +96,20 @@ uint8_t Mem::read_byte(uint32_t address) {
 uint16_t Mem::read_word(uint32_t address) {
     address = mirror(address);
     uint8_t byte0, byte1;
-    if (!access_memory_mapped(address, 0, &byte0, false))
+    if (address == 0x4016) {
+        byte0 = controller_latch & 1;
+        controller_latch = controller_latch >> 1;
+        controller_latch |= 0x8000;
+    }
+    else if (!access_memory_mapped(address, 0, &byte0, false))
         byte0 = ram[address];
-    if (!access_memory_mapped(address+1, 0, &byte1, false))
+
+    if (address+1 == 0x4016) {
+        byte1 = controller_latch & 1;
+        controller_latch = controller_latch >> 1;
+        controller_latch |= 0x8000;
+    }
+    else if (!access_memory_mapped(address+1, 0, &byte1, false))
         byte1 = ram[address+1];
     return ((byte1 << 8) | byte0);
 }
@@ -114,34 +128,38 @@ uint32_t Mem::read_long(uint32_t address) {
 
 void Mem::write_byte(uint32_t address, uint8_t data) {
     address = mirror(address);
-    if (address == 0x7e0100) {
-        cout << "GAMEMODE " << std::hex << (unsigned) data << endl;
-    }
+    //if (address == 0x7e0100) {
+    //    cout << "GAMEMODE " << std::hex << (unsigned) data << endl;
+    //}
     //cout << "write " << address << " " << (unsigned) data << endl;
-    if (address == 0x4218 || address == 0x4219) {
+    if (address == 0x4016 || address == 0x4200) {
 	    controller_latch = 0;
 	    XEvent event;
 	    while (XPending(di)) {
-            cout << "KEY PRESS----------" << endl;
 	        XNextEvent(di, &event);
 	        int a;
 	        if (event.type == KeyRelease) {
 	    	    a = event.xkey.keycode;
+                cout << std::hex << (unsigned) a << endl;
 	    	    if (a == 52)       //z_key, B
 	        	    controller_inputs &= 0x7fff;
 	        	else if (a == 53)  //x_key, A
 	        	    controller_inputs &= 0xff7f;
+                else if (a == 38)  //a_key, Y
+                    controller_inputs &= 0xbfff;
+                else if (a == 39)  //s_key, X
+                    controller_inputs &= 0xffbf;
 	        	else if (a == 22)  //backspace_key, SELECT
 	        	    controller_inputs &= 0xdfff;
 	        	else if (a == 36)  //enter_key, START
 	        	    controller_inputs &= 0xefff;
-	        	else if (a == 111)  //up_key, UP
+	        	else if (a == 98)  //up_key, UP
 	        	    controller_inputs &= 0xf7ff;
-	        	else if (a == 116)  //down_key, DOWN
+	        	else if (a == 104)  //down_key, DOWN
 	        	    controller_inputs &= 0xfbff;
-	        	else if (a == 113)  //left_key, LEFT
+	        	else if (a == 100)  //left_key, LEFT
 	        	    controller_inputs &= 0xfdff;
-	        	else if (a == 114)  //right_key, RIGHT
+	        	else if (a == 102)  //right_key, RIGHT
 	        	    controller_inputs &= 0xfeff;
 	        }
 	        if (event.type == KeyPress) {
@@ -150,21 +168,27 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 	        	    controller_inputs |= 0x8000;
 	        	else if (a == 53)  //x_key, A
 	        	    controller_inputs |= 0x0080;
+                else if (a == 38)  //a_key, Y
+                    controller_inputs &= 0x4000;
+                else if (a == 39)  //s_key, X
+                    controller_inputs &= 0x0040;
 	        	else if (a == 22)  //backspace_key, SELECT
 	        	    controller_inputs |= 0x2000;
 	        	else if (a == 36)  //enter_key, START
 	        	    controller_inputs |= 0x1000;
-	        	else if (a == 111)  //up_key, UP
+	        	else if (a == 98)  //up_key, UP
 	        	    controller_inputs |= 0x0800;
-	        	else if (a == 116)  //down_key, DOWN
+	        	else if (a == 104)  //down_key, DOWN
 	        	    controller_inputs |= 0x0400;
-	        	else if (a == 113)  //left_key, LEFT
+	        	else if (a == 100)  //left_key, LEFT
 	        	    controller_inputs |= 0x0200;
-	        	else if (a == 114)  //right_key
+	        	else if (a == 102)  //right_key, RIGHT
 	        	    controller_inputs |= 0x0100;
 	        }
 	    }
 	    controller_latch = controller_inputs;
+        controller_status = controller_inputs;
+        ram[0x4212] = 0;
     }
     else if (!access_memory_mapped(address, data, NULL, true)) { 
         if (address == 0x2140) {
@@ -196,14 +220,13 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 
 void Mem::write_word(uint32_t address, uint16_t data) {
     address = mirror(address);
-    if (address == 0x4218 || address == 0x4219) {
+    if (address == 0x4016 || address == 0x4200) {
 	    controller_latch = 0;
 	    XEvent event;
 	    while (XPending(di)) {
-            cout << "KEY PRESS----------" << endl;
 	        XNextEvent(di, &event);
 	        int a;
-	        if (event.type == KeyRelease) {
+	        if (event.type == KeyPress) {
 	    	    a = event.xkey.keycode;
 	    	    if (a == 52)       //z_key, B
 	        	    controller_inputs &= 0x7fff;
@@ -213,16 +236,16 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 	        	    controller_inputs &= 0xdfff;
 	        	else if (a == 36)  //enter_key, START
 	        	    controller_inputs &= 0xefff;
-	        	else if (a == 111)  //up_key, UP
+	        	else if (a == 98)  //up_key, UP
 	        	    controller_inputs &= 0xf7ff;
-	        	else if (a == 116)  //down_key, DOWN
+	        	else if (a == 104)  //down_key, DOWN
 	        	    controller_inputs &= 0xfbff;
-	        	else if (a == 113)  //left_key, LEFT
+	        	else if (a == 100)  //left_key, LEFT
 	        	    controller_inputs &= 0xfdff;
-	        	else if (a == 114)  //right_key, RIGHT
+	        	else if (a == 102)  //right_key, RIGHT
 	        	    controller_inputs &= 0xfeff;
 	        }
-	        if (event.type == KeyPress) {
+	        if (event.type == KeyRelease) {
 	    	    a = event.xkey.keycode;
 	    	    if (a == 52)       //z_key, B
 	        	    controller_inputs |= 0x8000;
@@ -232,17 +255,19 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 	        	    controller_inputs |= 0x2000;
 	        	else if (a == 36)  //enter_key, START
 	        	    controller_inputs |= 0x1000;
-	        	else if (a == 111)  //up_key, UP
+	        	else if (a == 98)  //up_key, UP
 	        	    controller_inputs |= 0x0800;
-	        	else if (a == 116)  //down_key, DOWN
+	        	else if (a == 104)  //down_key, DOWN
 	        	    controller_inputs |= 0x0400;
-	        	else if (a == 113)  //left_key, LEFT
+	        	else if (a == 100)  //left_key, LEFT
 	        	    controller_inputs |= 0x0200;
-	        	else if (a == 114)  //right_key
+	        	else if (a == 102)  //right_key
 	        	    controller_inputs |= 0x0100;
 	        }
 	    }
 	    controller_latch = controller_inputs;
+        controller_status = controller_inputs;
+        ram[0x4212] = 0;
     }
     //cout << "write " << address << " " << (unsigned) data << endl;
     else if (!access_memory_mapped(address, (data & 0x00ff), NULL, true)) 
@@ -268,17 +293,20 @@ uint32_t Mem::mirror(uint32_t address) {
 
     //Upper banks (minus last 2) are mirrored into lower banks.
     //The two leftover banks correspond to $7e and $7f
-    if (bank >= 0x80 && bank <= 0xfd) {
+    if (bank >= 0x80 && bank <= 0xdf) {
         bank -= 0x80;
     }
 
-    //First two pages of banks $00~3f are mirrored into
-    //first two pages of bank $7e
     if (bank <= 0x3f) {
         if (offset <= 0x1fff) {
             bank = 0x7e;
         }
+        else if (offset <= 0x7fff) {
+            bank = 0x00;
+        }
     }
+
+            
     uint32_t return_address = (bank << 16) | offset;
     return return_address;
 }
@@ -521,6 +549,8 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
             *result = ppu->read_CGDATAREAD();
     	else if (address == 0x2180)
     	    *result = read_WMDATA();
+        else if (address == 0x4212)
+            *result = ppu->read_HVBJOY();
     	else if (address == 0x4214)
     	    *result = read_RDDIVL();
     	else if (address == 0x4215)
@@ -529,6 +559,10 @@ bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, 
     	    *result = read_RDMPYL();
     	else if (address == 0x4217)
     	    *result = read_RDMPYH();
+    	else if (address == 0x4218)
+    	    *result = read_JOY1L();
+    	else if (address == 0x4219)
+    	    *result = read_JOY1H();
         else
             return false;
     }
@@ -735,6 +769,14 @@ uint8_t Mem::read_RDMPYL() {
 
 uint8_t Mem::read_RDMPYH() {
     return mult_divr_h;
+}
+
+uint8_t Mem::read_JOY1L() {
+    return (controller_status & 0x00ff);
+}
+
+uint8_t Mem::read_JOY1H() {
+    return ((controller_status >> 8) & 0x00ff);
 }
 
 /////////
