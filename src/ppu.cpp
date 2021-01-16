@@ -60,6 +60,8 @@ Ppu::Ppu() {
     BG3HOFS_h = 0; BG3VOFS_h = 0;
     BG4HOFS_h = 0; BG4VOFS_h = 0;
     oam_h_addr = 0;
+
+    brightness = 0xf;
 }
 
 void Ppu::drawBGs(uint32_t scanline) {
@@ -80,6 +82,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
     bool *bg_window;
     bool bg_main_en, bg_sub_en, bg_mainw_en, bg_subw_en;
     uint16_t hscroll, vscroll;
+    bool mosaic;
     //Determine tilemap addresses
     uint32_t tilemap_address, char_address;
     bool tilemap_x_mirror, tilemap_y_mirror;
@@ -98,6 +101,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	    char_address        = BG1_char_address;
         hscroll             = BG1_hscroll;
         vscroll             = BG1_vscroll;
+        mosaic              = BG1_mosaic;
     }
     else if (BG == 2) {
         bg_frame_buffer     = BG2_frame_buffer;
@@ -114,6 +118,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	    char_address        = BG2_char_address;
         hscroll             = BG2_hscroll;
         vscroll             = BG2_vscroll;
+        mosaic              = BG2_mosaic;
     }
     else if (BG == 3) {
         bg_frame_buffer     = BG3_frame_buffer;
@@ -130,6 +135,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	    char_address        = BG3_char_address;
         hscroll             = BG3_hscroll;
         vscroll             = BG3_vscroll;
+        mosaic              = BG3_mosaic;
     }
     else if (BG == 4) {
         bg_frame_buffer     = BG4_frame_buffer;
@@ -146,6 +152,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	    char_address        = BG4_char_address;
         hscroll             = BG4_hscroll;
         vscroll             = BG4_vscroll;
+        mosaic              = BG4_mosaic;
     }
     uint32_t tilemap_size = 0x400;
     if (tilemap_x_mirror && !tilemap_y_mirror)
@@ -160,7 +167,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
     
     //Tile loop
     uint32_t line = (scanline + vscroll)%512;
-    for (uint32_t i = 0; i<32; i++) {
+    for (uint32_t i = 0; i<33; i++) {
 	    uint16_t tile;
 	    uint16_t tile_number;
 	    uint8_t palette;
@@ -218,7 +225,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	        //  - where the palette starts for this BG
 	        //  - The palette index * 8 colors for each bpp
 	        //  - The index computed with the bitplanes
-            uint32_t color;
+            uint32_t color, sub_color;
             if (cg_index == 0) color = -1; 
 	        else color = cg[palette_address + (palette*bpp*bpp) + cg_index];
 	        
@@ -228,10 +235,24 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
             if (h_flip) pos_x += (7-j2);
 	        else pos_x += j2;
             if (v_flip) pos_y += (7-2*((scanline%8)));
-	        //else pos_y += i2;
-            //if (BG == 3) cout << std::hex << (unsigned) pos_x << " " << pos_y << endl;
             pos_x = pos_x % 512;
             pos_y = pos_y % 512;
+            
+            if (color != -1)
+                color = applyBrightness(color); 
+
+            sub_color = color;
+
+            if (mosaic) {
+                //0 amount = 1x1, f amount = 16x16
+                uint32_t pos_x_mosaic = pos_x - (pos_x % (mosaic_amount+1));
+                uint32_t pos_y_mosaic = pos_y - (pos_y % (mosaic_amount+1));
+                //Avoid for first pixel of the square
+                if (pos_x % (mosaic_amount+1) != 0 || pos_y % (mosaic_amount+1) != 0) {
+                    color = bg_frame_buffer[pos_x_mosaic + (512*pos_y_mosaic)];
+                    sub_color = bg_sub_frame_buffer[pos_x_mosaic + (512*pos_y_mosaic)];
+                }
+            }
 
             if (bg_main_en) {
                 if (bg_mainw_en && bg_window[pos_x + (512*pos_y)]) {
@@ -247,7 +268,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
                     bg_sub_frame_buffer[pos_x + (512*pos_y)] = -1;
                 }
                 else {
-                    bg_sub_frame_buffer[pos_x + (512*pos_y)] = color;
+                    bg_sub_frame_buffer[pos_x + (512*pos_y)] = sub_color;
                 }
             }
             else bg_sub_frame_buffer[pos_x + (512*pos_y)] = -1;
@@ -404,14 +425,28 @@ void Ppu::drawSprites() {
 	            	    else pos_y += i2 + (vert * 8);
                         pos_x %= 512;
                         pos_y %= 512;
-                        if (color != -1)
+                        if (color != -1) {
 	            	        obj_frame_buffer[pos_x + (512*pos_y)] = color;	
+                        }
                         obj_priority_buffer[pos_x + (512*pos_y)] = priority;
 	                }
 	            }
             }
         }
     }
+}
+
+uint32_t Ppu::applyBrightness(uint32_t color) {
+    uint32_t r = color & 0x1f;
+    uint32_t g = (color >> 5) & 0x1f;
+    uint32_t b = (color >> 10) & 0x1f;
+    // 0 brightness = black
+    // I should consider a new approach
+    r = r & ((brightness << 1) | (brightness & 1));
+    g = g & ((brightness << 1) | (brightness & 1));
+    b = b & ((brightness << 1) | (brightness & 1));
+    uint32_t new_color = (b << 10) | (g << 5) | r;
+    return new_color;
 }
 
 uint32_t Ppu::determinePaletteAddress(uint8_t BG, uint8_t mode) {
@@ -729,7 +764,8 @@ void Ppu::colorMath(uint8_t top_layer, uint32_t *color, uint32_t sub_color) {
 void Ppu::drawScreen() {
     for (uint32_t i = 0; i<224; ++i) {
 	    for (uint32_t j = 0; j<256; ++j) {
-	        XSetForeground(di, gc, convert_BGR_RGB(frame_buffer[j + (i*512)]));
+            uint32_t color = frame_buffer[j + (i*512)];
+	        XSetForeground(di, gc, convert_BGR_RGB(color));
 	        XDrawPoint(di, wi, gc, j, i);
 	    }
     }
@@ -829,15 +865,6 @@ void Ppu::write_BGMODE(uint8_t data) {
     BG2_char_size = (data >> 5) & 0x01;
     BG3_char_size = (data >> 6) & 0x01;
     BG4_char_size = (data >> 7) & 0x01;
-}
-
-void Ppu::write_MOSAIC(uint8_t data) {
-    //xxxxDCBA
-    BG1_mosaic = data & 0x01;
-    BG2_mosaic = (data >> 1) & 0x01;
-    BG3_mosaic = (data >> 2) & 0x01;
-    BG4_mosaic = (data >> 3) & 0x01;
-    mosaic_pixel_size = (data >> 4) & 0x0f;
 }
 
 void Ppu::write_BG1SC(uint8_t data) {
@@ -1318,6 +1345,16 @@ void Ppu::write_CGWSEL(uint8_t data) {
 uint8_t Ppu::read_HVBJOY() {
     //vh-----a
     return ((in_vblank << 7) | (in_hblank << 6));
+}
+
+void Ppu::write_MOSAIC(uint8_t data) {
+    //xxxxDCBA
+    
+    BG1_mosaic = data & 1;
+    BG2_mosaic = (data >> 1) & 1;
+    BG3_mosaic = (data >> 2) & 1;
+    BG4_mosaic = (data >> 3) & 1;
+    mosaic_amount = (data >> 4) & 0xf;
 }
 
 void Ppu::initBppMatrix() {

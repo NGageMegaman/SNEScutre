@@ -17,6 +17,7 @@ class Ppu {
     void colorMath(uint8_t top_layer, uint32_t *color, uint32_t sub_color);
 	void drawScreen();
 	void vblank();
+    uint32_t applyBrightness(uint32_t color);
 	uint32_t determinePaletteAddress(uint8_t BG, uint8_t mode);
     void determineObjectSize(uint8_t *x, uint8_t *y, bool s);
 	uint32_t convert_BGR_RGB(uint32_t bgr);
@@ -27,7 +28,6 @@ class Ppu {
     void write_OAMADDH(uint8_t data);
     void write_OAMDATA(uint8_t data);
     void write_BGMODE(uint8_t data);
-    void write_MOSAIC(uint8_t data);
     void write_BG1SC(uint8_t data);
     void write_BG2SC(uint8_t data);
     void write_BG3SC(uint8_t data);
@@ -69,6 +69,7 @@ class Ppu {
     void write_TS(uint8_t data);
     void write_TMW(uint8_t data);
     void write_TSW(uint8_t data);
+    void write_MOSAIC(uint8_t data);
 
     uint8_t read_OAMDATAREAD();
     uint8_t read_VMDATALREAD();
@@ -99,7 +100,6 @@ class Ppu {
     bool BG1_char_size, BG2_char_size, BG3_char_size, BG4_char_size;
     uint8_t BG_mode;
     bool mode1_BG3_priority;
-    bool BG1_mosaic, BG2_mosaic, BG3_mosaic, BG4_mosaic;
     uint8_t mosaic_pixel_size;
     uint16_t BG1_tilemap_address, BG2_tilemap_address, BG3_tilemap_address, BG4_tilemap_address;
     bool BG1_tilemap_x_mirror, BG2_tilemap_x_mirror, BG3_tilemap_x_mirror, BG4_tilemap_x_mirror;
@@ -172,6 +172,8 @@ class Ppu {
     bool BG1_sub_en, BG2_sub_en, BG3_sub_en, BG4_sub_en, OBJ_sub_en; 
     bool BG1_mainw_en, BG2_mainw_en, BG3_mainw_en, BG4_mainw_en, OBJ_mainw_en; 
     bool BG1_subw_en, BG2_subw_en, BG3_subw_en, BG4_subw_en, OBJ_subw_en; 
+    bool BG1_mosaic, BG2_mosaic, BG3_mosaic, BG4_mosaic;
+    uint8_t mosaic_amount;
 
     bool in_vblank, in_hblank;
 

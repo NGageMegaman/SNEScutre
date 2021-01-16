@@ -232,6 +232,10 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 	        	    controller_inputs &= 0x7fff;
 	        	else if (a == 53)  //x_key, A
 	        	    controller_inputs &= 0xff7f;
+                else if (a == 38)  //a_key, Y
+                    controller_inputs &= 0xbfff;
+                else if (a == 39)  //s_key, X
+                    controller_inputs &= 0xffbf;
 	        	else if (a == 22)  //backspace_key, SELECT
 	        	    controller_inputs &= 0xdfff;
 	        	else if (a == 36)  //enter_key, START
@@ -251,6 +255,10 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 	        	    controller_inputs |= 0x8000;
 	        	else if (a == 53)  //x_key, A
 	        	    controller_inputs |= 0x0080;
+                else if (a == 38)  //a_key, Y
+                    controller_inputs &= 0x4000;
+                else if (a == 39)  //s_key, X
+                    controller_inputs &= 0x0040;
 	        	else if (a == 22)  //backspace_key, SELECT
 	        	    controller_inputs |= 0x2000;
 	        	else if (a == 36)  //enter_key, START
