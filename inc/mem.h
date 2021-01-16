@@ -59,6 +59,8 @@ class Mem {
     void HDMA_hblank(uint8_t channel);
     void hblank();
 	void load_rom(char *name);
+    void write_SRAM(uint32_t address, uint8_t data);
+    void load_SRAM();
 
 	unsigned char *ram;
     bool spc_transfer;

@@ -301,8 +301,12 @@ uint32_t Mem::mirror(uint32_t address) {
 
     //Upper banks (minus last 2) are mirrored into lower banks.
     //The two leftover banks correspond to $7e and $7f
-    if (bank >= 0x80 && bank <= 0xdf) {
+    if (bank >= 0x80 && bank <= 0xef) {
         bank -= 0x80;
+    }
+
+    if (bank >= 0x70 && bank <= 0x7d) {
+        bank += 0x80;
     }
 
     if (bank <= 0x3f) {
@@ -322,6 +326,12 @@ uint32_t Mem::mirror(uint32_t address) {
 bool Mem::access_memory_mapped(uint32_t address, uint8_t data, uint8_t *result, bool wr) {
     //We check for memory mapped addresses
     if (wr) {
+        uint8_t bank = (address >> 16) & 0x0000ff;
+        uint8_t offset = address & 0x00ffff;
+        if (bank >= 0xf0 && bank <= 0xff && offset < 0x8000) {
+            write_SRAM(address, data);
+            return true;
+        }
         switch (address) {
             case(0x2100):
                 ppu->write_INIDISP(data);
@@ -1019,5 +1029,23 @@ void Mem::load_rom(char *name) {
         rom_size -= 0x8000;
     }
     rom.close();
+
+    load_SRAM();
 }
 
+void Mem::write_SRAM(uint32_t address, uint8_t data) {
+    cout << "WRITE TO SRAM " << address << endl;
+    ram[address] = data;
+
+    ofstream sram;
+    sram.open("smw.sav", std::ios_base::binary);
+    sram.write((char *)&ram[0xf00000], 0x0f0000);
+    sram.close();
+}
+
+void Mem::load_SRAM() {
+    ifstream sram;
+    sram.open("smw.sav", std::ios_base::binary);
+    sram.read((char *)&ram[0xf00000], 0x0f0000);
+    sram.close();
+}

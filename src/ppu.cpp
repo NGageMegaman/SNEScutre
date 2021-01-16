@@ -230,7 +230,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	        else color = cg[palette_address + (palette*bpp*bpp) + cg_index];
 	        
 	        uint32_t pos_x = ((i*8) - (hscroll%8)); 
-            uint32_t pos_y = (scanline - (vscroll%8));
+            uint32_t pos_y = (scanline);
 
             if (h_flip) pos_x += (7-j2);
 	        else pos_x += j2;
@@ -425,8 +425,12 @@ void Ppu::drawSprites() {
 	            	    else pos_y += i2 + (vert * 8);
                         pos_x %= 512;
                         pos_y %= 512;
+
+                        if (color != -1)
+                            color = applyBrightness(color);
+
                         if (color != -1) {
-	            	        obj_frame_buffer[pos_x + (512*pos_y)] = color;	
+	            	        obj_frame_buffer[pos_x + (512*pos_y)] = color;
                         }
                         obj_priority_buffer[pos_x + (512*pos_y)] = priority;
 	                }
@@ -552,10 +556,12 @@ uint32_t Ppu::convert_BGR_RGB(uint32_t bgr) {
 void Ppu::renderFrame() {
     uint32_t backdrop = fixed_color;
     uint8_t top_layer;
-    uint32_t color1, color2, color3, color4;
+    uint32_t color1, color2, color3, color4, coloro;
     uint32_t color1_s, color2_s, color3_s, color4_s;
     bool p4, p3, p2, p1;
+    uint8_t po;
     switch (BG_mode) {
+        //MODE 0
         case 0:
             for (uint32_t i = 0; i<242; ++i) {
                 for (uint32_t j = 0; j<256; ++j) {
@@ -565,6 +571,7 @@ void Ppu::renderFrame() {
                     color2 = BG2_frame_buffer[j + (i*512)];
                     color3 = BG3_frame_buffer[j + (i*512)];
                     color4 = BG4_frame_buffer[j + (i*512)];
+                    coloro = obj_frame_buffer[j + (i*512)];
                     color1_s = BG1_sub_frame_buffer[j + (i*512)];
                     color2_s = BG2_sub_frame_buffer[j + (i*512)];
                     color3_s = BG3_sub_frame_buffer[j + (i*512)];
@@ -573,6 +580,7 @@ void Ppu::renderFrame() {
                     p2 = BG2_priority_buffer[j + (i*512)];
                     p3 = BG3_priority_buffer[j + (i*512)];
                     p4 = BG4_priority_buffer[j + (i*512)];
+                    po = obj_priority_buffer[j + (i*512)];
                     top_layer = 0xf;
                     if (!p4) {
                         if (color4 != -1) {
@@ -588,6 +596,12 @@ void Ppu::renderFrame() {
                         }
                         if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
                     }
+                    if (po == 0) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
+                    }
                     if (p4) {
                         if (color4 != -1) {
                             main_frame_buffer[j + (i*512)] = color4;
@@ -601,6 +615,12 @@ void Ppu::renderFrame() {
                             top_layer = 3;
                         }
                         if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                    }
+                    if (po == 1) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
                     }
                     if (!p2) {
                         if (color2 != -1) {
@@ -616,6 +636,12 @@ void Ppu::renderFrame() {
                         }
                         if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
+                    if (po == 2) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
+                    }
                     if (p2) {
                         if (color2 != -1) {
                             main_frame_buffer[j + (i*512)] = color2;
@@ -629,6 +655,12 @@ void Ppu::renderFrame() {
                             top_layer = 1;
                         }
                         if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
+                    }
+                    if (po == 3) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
                     }
                     if (!sw_fixed_color) sub_frame_buffer[j + (i*512)] = backdrop;
                     if (!BDsub[j + (i * 512)]) sub_frame_buffer[j + (i*512)] = backdrop;
@@ -645,6 +677,7 @@ void Ppu::renderFrame() {
                     color2 = BG2_frame_buffer[j + (i*512)];
                     color3 = BG3_frame_buffer[j + (i*512)];
                     color4 = BG4_frame_buffer[j + (i*512)];
+                    coloro = obj_frame_buffer[j + (i*512)];
                     color1_s = BG1_sub_frame_buffer[j + (i*512)];
                     color2_s = BG2_sub_frame_buffer[j + (i*512)];
                     color3_s = BG3_sub_frame_buffer[j + (i*512)];
@@ -653,6 +686,7 @@ void Ppu::renderFrame() {
                     p2 = BG2_priority_buffer[j + (i*512)];
                     p3 = BG3_priority_buffer[j + (i*512)];
                     p4 = BG4_priority_buffer[j + (i*512)];
+                    po = obj_priority_buffer[j + (i*512)];
                     main_frame_buffer[j + (i * 512)] = cg[0];
                     sub_frame_buffer[j + (i * 512)] = backdrop;
                     top_layer = 0xf;
@@ -663,6 +697,12 @@ void Ppu::renderFrame() {
                         }
                         if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
                     }
+                    if (po == 0) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
+                    }
                     if (!mode1_BG3_priority) {
                         if (p3) {
                             if (color3 != -1) {
@@ -670,6 +710,12 @@ void Ppu::renderFrame() {
                                 top_layer = 3;
                             }
                             if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                        }
+                    }
+                    if (po == 1) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
                         }
                     }
                     if (!p2) {
@@ -686,6 +732,12 @@ void Ppu::renderFrame() {
                         }
                         if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
+                    if (po == 2) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
+                    }
                     if (p2) {
                         if (color2 != -1) {
                             main_frame_buffer[j + (i*512)] = color2;
@@ -700,6 +752,12 @@ void Ppu::renderFrame() {
                         }
                         if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
+                    if (po == 3) {
+                        if (coloro != -1) {
+                            main_frame_buffer[j + (i*512)] = coloro;
+                            top_layer = 5;
+                        }
+                    }
                     if (mode1_BG3_priority) {
                         if (p3) {
                             if (color3 != -1) {
@@ -709,13 +767,6 @@ void Ppu::renderFrame() {
                             if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
                         }
                     }
-                    //if (BG1_priority_buffer[j + (i*512)]) {
-                        uint32_t color = obj_frame_buffer[j + (i*512)];
-                        if (color != -1) {
-                            main_frame_buffer[j + (i*512)] = color;
-                            top_layer = 5;
-                        }
-                    //}
                     if (!sw_fixed_color) sub_frame_buffer[j + (i*512)] = backdrop;
                     if (!BDsub[j + (i * 512)]) sub_frame_buffer[j + (i*512)] = cg[0]; // WHY DOES THIS WORK???????
                     if (!BDmain[j + (i * 512)]) main_frame_buffer[j + (i*512)] = cg[0];
