@@ -230,11 +230,12 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	        else color = cg[palette_address + (palette*bpp*bpp) + cg_index];
 	        
 	        uint32_t pos_x = ((i*8) - (hscroll%8)); 
-            uint32_t pos_y = (scanline);
+            uint32_t pos_y = scanline;
 
             if (h_flip) pos_x += (7-j2);
 	        else pos_x += j2;
-            if (v_flip) pos_y += (7-2*((scanline%8)));
+            //if (v_flip) pos_y += (7-2*((scanline%8)));
+            if (v_flip) pos_y += (7-(2*i2));
             pos_x = pos_x % 512;
             pos_y = pos_y % 512;
             
