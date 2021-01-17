@@ -1666,25 +1666,25 @@ void Cpu::MVN_execute(uint8_t srcBank, uint8_t dstBank) {
     uint32_t srcAddr, dstAddr, len;
     
     if (regP.M)
-        len = regA & 0x00ff;
+        len = regA & 0x0000ff;
     else
-        len = regA;
+        len = regA & 0x00ffff;
 
     if (regP.X) {
-        srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
-        dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
+        srcAddr = regX & 0x00ff;
+        dstAddr = regY & 0x00ff;
     }
     
     else {
-        srcAddr = ((srcBank << 16) & 0xff0000) | regX;
-        dstAddr = ((dstBank << 16) & 0xff0000) | regY;
+        srcAddr = regX;
+        dstAddr = regY;
     }
 
     while (len != 0xffffffff) {
-        uint8_t byte = mem.read_byte(srcAddr);
-        mem.write_byte(dstAddr, byte);
-        srcAddr++;
-        dstAddr++;
+        uint8_t byte = mem.read_byte((srcBank << 16) | srcAddr);
+        mem.write_byte((dstBank << 16) | dstAddr, byte);
+        srcAddr = (srcAddr + 1) & 0x00ffff;
+        dstAddr = (dstAddr + 1) & 0x00ffff;
         len--;
         clock->cycles += 7;
     } 
@@ -1711,24 +1711,24 @@ void Cpu::MVP_execute(uint8_t srcBank, uint8_t dstBank) {
 
     uint32_t len, srcAddr, dstAddr;
     if (regP.M)
-        len = regA & 0x00ff;
+        len = regA & 0x0000ff;
     else
-        len = regA;
+        len = regA & 0x00ffff;
 
     if (regP.X) {
-        srcAddr = ((srcBank << 16) & 0xff0000) | (regX & 0x00ff);
-        dstAddr = ((dstBank << 16) & 0xff0000) | (regY & 0x00ff);
+        srcAddr = regX & 0x00ff;
+        dstAddr = regY & 0x00ff;
     }
     else {
-        srcAddr = ((srcBank << 16) & 0xff0000) | regX;
-        dstAddr = ((dstBank << 16) & 0xff0000) | regY;
+        srcAddr = regX;
+        dstAddr = regY;
     }
 
     while (len != 0xffffffff) {
-        uint8_t byte = mem.read_byte(srcAddr);
-        mem.write_byte(dstAddr, byte);
-        srcAddr--;
-        dstAddr--;
+        uint8_t byte = mem.read_byte((srcBank << 16) | srcAddr);
+        mem.write_byte((dstBank << 16) | dstAddr, byte);
+        srcAddr = (srcAddr - 1) & 0x00ffff;
+        dstAddr = (dstAddr - 1) & 0x00ffff;
         len--;
         clock->cycles += 7;
     } 

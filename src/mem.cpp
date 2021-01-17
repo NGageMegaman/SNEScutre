@@ -169,9 +169,9 @@ void Mem::write_byte(uint32_t address, uint8_t data) {
 	        	else if (a == 53)  //x_key, A
 	        	    controller_inputs |= 0x0080;
                 else if (a == 38)  //a_key, Y
-                    controller_inputs &= 0x4000;
+                    controller_inputs |= 0x4000;
                 else if (a == 39)  //s_key, X
-                    controller_inputs &= 0x0040;
+                    controller_inputs |= 0x0040;
 	        	else if (a == 22)  //backspace_key, SELECT
 	        	    controller_inputs |= 0x2000;
 	        	else if (a == 36)  //enter_key, START
@@ -256,9 +256,9 @@ void Mem::write_word(uint32_t address, uint16_t data) {
 	        	else if (a == 53)  //x_key, A
 	        	    controller_inputs |= 0x0080;
                 else if (a == 38)  //a_key, Y
-                    controller_inputs &= 0x4000;
+                    controller_inputs |= 0x4000;
                 else if (a == 39)  //s_key, X
-                    controller_inputs &= 0x0040;
+                    controller_inputs |= 0x0040;
 	        	else if (a == 22)  //backspace_key, SELECT
 	        	    controller_inputs |= 0x2000;
 	        	else if (a == 36)  //enter_key, START
@@ -1034,7 +1034,6 @@ void Mem::load_rom(char *name) {
 }
 
 void Mem::write_SRAM(uint32_t address, uint8_t data) {
-    cout << "WRITE TO SRAM " << address << endl;
     ram[address] = data;
 
     ofstream sram;

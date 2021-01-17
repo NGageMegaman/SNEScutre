@@ -65,8 +65,8 @@ Ppu::Ppu() {
 }
 
 void Ppu::drawBGs(uint32_t scanline) {
+    determineWindows(scanline);
     for (int i = 0; i<4; ++i) {
-        determineWindows(scanline);
         drawBG(i+1, scanline);
     }
     if (scanline == 241) {
@@ -76,16 +76,13 @@ void Ppu::drawBGs(uint32_t scanline) {
 }
 
 void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
-    uint32_t *bg_frame_buffer;
-    uint32_t *bg_sub_frame_buffer;
-    bool *bg_priority_buffer;
-    bool *bg_window;
-    bool bg_main_en, bg_sub_en, bg_mainw_en, bg_subw_en;
-    uint16_t hscroll, vscroll;
-    bool mosaic;
-    //Determine tilemap addresses
     uint32_t tilemap_address, char_address;
-    bool tilemap_x_mirror, tilemap_y_mirror;
+    uint32_t *bg_frame_buffer, *bg_sub_frame_buffer;
+    uint16_t hscroll, vscroll;
+    bool *bg_priority_buffer, *bg_window;
+    bool bg_main_en, bg_sub_en, bg_mainw_en, bg_subw_en;
+    bool mosaic, tilemap_x_mirror, tilemap_y_mirror;
+    //Determine Mode specific parameters
     if (BG == 1) {
         bg_frame_buffer     = BG1_frame_buffer;
         bg_sub_frame_buffer = BG1_sub_frame_buffer;
@@ -154,25 +151,17 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
         vscroll             = BG4_vscroll;
         mosaic              = BG4_mosaic;
     }
-    uint32_t tilemap_size = 0x400;
-    if (tilemap_x_mirror && !tilemap_y_mirror)
-	    tilemap_size += 0x400;
-    if (tilemap_y_mirror && !tilemap_x_mirror)
-	    tilemap_size += 0x400;
-    if (tilemap_x_mirror && tilemap_y_mirror)
-	    tilemap_size += 3*0x400;
-    
-    //Determine Mode specific parameters
+
+    uint32_t addr_x, addr_y, addr_base, character_address, palette_address;
+    uint16_t tile, tile_number;
+    uint8_t palette;
     uint8_t bpp = bpp_matrix[4*BG_mode + (BG-1)];
+    bool v_flip, h_flip, priority;
     
     //Tile loop
     uint32_t line = (scanline + vscroll)%512;
+	palette_address = determinePaletteAddress(BG, BG_mode);
     for (uint32_t i = 0; i<33; i++) {
-	    uint16_t tile;
-	    uint16_t tile_number;
-	    uint8_t palette;
-	    bool v_flip, h_flip, priority;
-        uint32_t addr_x, addr_y, addr_base;
         addr_base = 0;
         addr_x = ((i*8) + hscroll)%512;
         if (addr_x >= 256) {
@@ -198,18 +187,18 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	    h_flip = (tile >> 14) & 1;
 	    v_flip = (tile >> 15) & 1;
 
-	    //Determine tile position on the screen
-	    //TODO: consider 16x16 tiles, which is to say divide by 16
-	    uint32_t tile_x, tile_y;
-	    tile_x = addr_x;
-	    tile_y = addr_y;
+	    character_address = char_address + (tile_number*4*bpp);
 
-	    uint32_t character_address = char_address + (tile_number*4*bpp);
-	    uint32_t palette_address = determinePaletteAddress(BG, BG_mode);
-
+	    //TODO: consider 16x16 tiles
 	    //TODO:If direct color
 	    //Separate in a function?
         uint8_t i2 = (line % 8);
+	    uint32_t pos_init_x = (i*8) - (hscroll%8); 
+        uint32_t pos_y = scanline;
+        if (v_flip) pos_y += (7-(2*i2));
+        pos_y = pos_y % 512;
+        uint32_t pos_y_mosaic = pos_y - (pos_y % (mosaic_amount+1));
+
 	    for (uint8_t j2 = 0; j2 < 8; ++j2) {
 	        uint8_t cg_index = 0;
 	        for (uint8_t plane = 0; plane < bpp; plane += 2) {
@@ -227,27 +216,21 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 	        //  - The index computed with the bitplanes
             uint32_t color, sub_color;
             if (cg_index == 0) color = -1; 
-	        else color = cg[palette_address + (palette*bpp*bpp) + cg_index];
-	        
-	        uint32_t pos_x = ((i*8) - (hscroll%8)); 
-            uint32_t pos_y = scanline;
-
-            if (h_flip) pos_x += (7-j2);
-	        else pos_x += j2;
-            //if (v_flip) pos_y += (7-2*((scanline%8)));
-            if (v_flip) pos_y += (7-(2*i2));
-            pos_x = pos_x % 512;
-            pos_y = pos_y % 512;
-            
-            if (color != -1)
+	        else { 
+                color = cg[palette_address + (palette*bpp*bpp) + cg_index];
                 color = applyBrightness(color); 
+            }
 
             sub_color = color;
+
+            uint32_t pos_x = pos_init_x;
+            if (h_flip) pos_x += (7-j2);
+	        else pos_x += j2;
+            pos_x = pos_x % 512;
 
             if (mosaic) {
                 //0 amount = 1x1, f amount = 16x16
                 uint32_t pos_x_mosaic = pos_x - (pos_x % (mosaic_amount+1));
-                uint32_t pos_y_mosaic = pos_y - (pos_y % (mosaic_amount+1));
                 //Avoid for first pixel of the square
                 if (pos_x % (mosaic_amount+1) != 0 || pos_y % (mosaic_amount+1) != 0) {
                     color = bg_frame_buffer[pos_x_mosaic + (512*pos_y_mosaic)];
@@ -279,6 +262,7 @@ void Ppu::drawBG(uint8_t BG, uint32_t scanline) {
 }
 
 void Ppu::determineWindows(uint32_t scanline) {
+
     bool b11, b12, b13, b14, bobj1, bbd1;
     bool b21, b22, b23, b24, bobj2, bbd2;
     bool b1, b2, b3, b4, bobj, bbd;
