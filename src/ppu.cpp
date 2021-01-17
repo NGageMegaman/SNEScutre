@@ -411,10 +411,10 @@ void Ppu::drawSprites() {
                         pos_x %= 512;
                         pos_y %= 512;
 
-                        if (color != -1)
+                        if (color != 0xffffffff)
                             color = applyBrightness(color);
 
-                        if (color != -1) {
+                        if (color != 0xffffffff) {
 	            	        obj_frame_buffer[pos_x + (512*pos_y)] = color;
                         }
                         obj_priority_buffer[pos_x + (512*pos_y)] = priority;
@@ -568,81 +568,81 @@ void Ppu::renderFrame() {
                     po = obj_priority_buffer[j + (i*512)];
                     top_layer = 0xf;
                     if (!p4) {
-                        if (color4 != -1) {
+                        if (color4 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color4;
                             top_layer = 4;
                         }
-                        if (color4_s != -1) sub_frame_buffer[j + (i*512)] = color4_s;
+                        if (color4_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color4_s;
                     }
                     if (!p3) {
-                        if (color3 != -1) {
+                        if (color3 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color3;
                             top_layer = 3;
                         }
-                        if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                        if (color3_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color3_s;
                     }
                     if (po == 0) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (p4) {
-                        if (color4 != -1) {
+                        if (color4 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color4;
                             top_layer = 4;
                         }
-                        if (color4_s != -1) sub_frame_buffer[j + (i*512)] = color4_s;
+                        if (color4_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color4_s;
                     }
                     if (p3) {
-                        if (color3 != -1) {
+                        if (color3 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color3;
                             top_layer = 3;
                         }
-                        if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                        if (color3_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color3_s;
                     }
                     if (po == 1) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (!p2) {
-                        if (color2 != -1) {
+                        if (color2 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color2;
                             top_layer = 2;
                         }
-                        if (color2_s != -1) sub_frame_buffer[j + (i*512)] = color2_s;
+                        if (color2_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color2_s;
                     }
                     if (!p1) {
-                        if (color1 != -1) {
+                        if (color1 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color1;
                             top_layer = 1;
                         }
-                        if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
+                        if (color1_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
                     if (po == 2) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (p2) {
-                        if (color2 != -1) {
+                        if (color2 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color2;
                             top_layer = 2;
                         }
-                        if (color2_s != -1) sub_frame_buffer[j + (i*512)] = color2_s;
+                        if (color2_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color2_s;
                     }
                     if (p1) {
-                        if (color1 != -1) {
+                        if (color1 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color1;
                             top_layer = 1;
                         }
-                        if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
+                        if (color1_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
                     if (po == 3) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
@@ -676,80 +676,80 @@ void Ppu::renderFrame() {
                     sub_frame_buffer[j + (i * 512)] = backdrop;
                     top_layer = 0xf;
                     if (!p3) {
-                        if (color3 != -1) {
+                        if (color3 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color3;
                             top_layer = 3;
                         }
-                        if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                        if (color3_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color3_s;
                     }
                     if (po == 0) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (!mode1_BG3_priority) {
                         if (p3) {
-                            if (color3 != -1) {
+                            if (color3 != 0xffffffff) {
                                 main_frame_buffer[j + (i*512)] = color3;
                                 top_layer = 3;
                             }
-                            if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                            if (color3_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color3_s;
                         }
                     }
                     if (po == 1) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (!p2) {
-                        if (color2 != -1) {
+                        if (color2 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color2;
                             top_layer = 2;
                         }
-                        if (color2_s != -1) sub_frame_buffer[j + (i*512)] = color2_s;
+                        if (color2_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color2_s;
                     }
                     if (!p1) {
-                        if (color1 != -1) {
+                        if (color1 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color1;
                             top_layer = 1;
                         }
-                        if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
+                        if (color1_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
                     if (po == 2) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (p2) {
-                        if (color2 != -1) {
+                        if (color2 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color2;
                             top_layer = 2;
                         }
-                        if (color2_s != -1) sub_frame_buffer[j + (i*512)] = color2_s;
+                        if (color2_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color2_s;
                     }
                     if (p1) {
-                        if (color1 != -1) {
+                        if (color1 != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = color1;
                             top_layer = 1;
                         }
-                        if (color1_s != -1) sub_frame_buffer[j + (i*512)] = color1_s;
+                        if (color1_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color1_s;
                     }
                     if (po == 3) {
-                        if (coloro != -1) {
+                        if (coloro != 0xffffffff) {
                             main_frame_buffer[j + (i*512)] = coloro;
                             top_layer = 5;
                         }
                     }
                     if (mode1_BG3_priority) {
                         if (p3) {
-                            if (color3 != -1) {
+                            if (color3 != 0xffffffff) {
                                 main_frame_buffer[j + (i*512)] = color3;
                                 top_layer = 3;
                             }
-                            if (color3_s != -1) sub_frame_buffer[j + (i*512)] = color3_s;
+                            if (color3_s != 0xffffffff) sub_frame_buffer[j + (i*512)] = color3_s;
                         }
                     }
                     if (!sw_fixed_color) sub_frame_buffer[j + (i*512)] = backdrop;

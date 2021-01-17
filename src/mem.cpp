@@ -904,7 +904,6 @@ void Mem::HDMA_hblank(uint8_t channel) {
         uint32_t A;
         uint32_t B = hdma_B[channel];
         bool dir = hdma_dir[channel];
-        uint32_t i = last_i[channel];
         uint32_t increment;
         if (hdma_addr_mode[channel] == 0) {
             A = base + 1;
